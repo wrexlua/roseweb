@@ -234,7 +234,7 @@ function shakeCard(id = 'formCard') {
                 boxes.forEach(b => { b.style.borderColor = '#4ade80'; b.style.boxShadow = '0 0 0 3px rgba(74,222,128,0.15)'; });
                 localStorage.setItem('roseSession', JSON.stringify(data.data));
                 localStorage.setItem('roseSessionToken', data.sessionToken);
-                setTimeout(() => { window.location.href = 'dashboard.html'; }, 900);
+                setTimeout(() => { window.location.href = '/dashboard'; }, 900);
             } else {
                 shakeCard();
                 if (keyError) {

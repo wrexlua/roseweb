@@ -109,7 +109,7 @@
         </form>
 
         <div style="margin-top: 20px; text-align: center;">
-            <a href="../index.html" style="font-size: 0.8rem; color: var(--t3); transition: color var(--fast);">← Back to home</a>
+            <a href="/" style="font-size: 0.8rem; color: var(--t3); transition: color var(--fast);">← Back to home</a>
         </div>
     </div>
 </div>
@@ -140,7 +140,7 @@ document.getElementById('adminLoginForm').addEventListener('submit', function(e)
         if (data.success) {
             localStorage.setItem('roseAdminToken', data.token);
             localStorage.setItem('roseAdminUser', data.username);
-            window.location.href = 'index.html';
+            window.location.href = '/';
         } else {
             btn.disabled = false;
             err.textContent = data.error || 'Wrong credentials.';

@@ -29,7 +29,7 @@
                 <button class="dash-close" onclick="handleLogout()" title="Logout">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 </button>
-                <button class="dash-close" onclick="window.location.href='index.html'" title="Close">
+                <button class="dash-close" onclick="window.location.href='/'" title="Close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
@@ -54,7 +54,7 @@
 (function() {
     const session = JSON.parse(localStorage.getItem('roseSession') || 'null');
     const sessionToken = localStorage.getItem('roseSessionToken');
-    if (!session || !sessionToken) { window.location.href = 'index.html'; return; }
+    if (!session || !sessionToken) { window.location.href = '/'; return; }
 
     const { username, products, expiry, key } = session;
     const myProducts = (products || []).map(p => p.toLowerCase());
@@ -96,12 +96,12 @@
             if (!valid) {
                 localStorage.removeItem('roseSession');
                 localStorage.removeItem('roseSessionToken');
-                window.location.href = 'index.html';
+                window.location.href = '/';
             }
         } catch(e) {
             localStorage.removeItem('roseSession');
             localStorage.removeItem('roseSessionToken');
-            window.location.href = 'index.html';
+            window.location.href = '/';
         }
     }
     validateSession();
@@ -189,7 +189,7 @@ async function sha256Hex(str) {
 function handleLogout() {
     localStorage.removeItem('roseSession');
     localStorage.removeItem('roseSessionToken');
-    window.location.href = 'index.html';
+    window.location.href = '/';
 }
 
 function escapeHtml(str) {

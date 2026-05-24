@@ -30,6 +30,12 @@ app.use((req, res, next) => {
     next();
 });
 
+app.use((req, res, next) => {
+    if (req.path === '/dashboard') req.url = '/dashboard.html';
+    else if (req.path === '/admin') req.url = '/admin/index.html';
+    else if (req.path === '/admin/login') req.url = '/admin/login.html';
+    next();
+});
 app.use(express.static(__dirname));
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 

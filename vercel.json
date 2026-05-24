@@ -7,6 +7,9 @@
         { "src": "assets/**/*", "use": "@vercel/static" }
     ],
     "routes": [
-        { "src": "/api/(.*)", "dest": "api/index.js" }
+        { "src": "/api/(.*)", "dest": "api/index.js" },
+        { "src": "/dashboard", "dest": "/dashboard.html" },
+        { "src": "/admin", "dest": "/admin/index.html" },
+        { "src": "/admin/login", "dest": "/admin/login.html" }
     ]
 }
