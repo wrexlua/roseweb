@@ -459,15 +459,14 @@ body.scrollable { overflow: auto; }
     border-top-color: #fff;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
+    flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .btn-submit.loading .btn-label,
-.btn-submit.loading .btn-arrow { opacity:0; }
+.btn-submit.loading .btn-arrow { display:none; }
 .btn-submit.loading .btn-spinner { display:block; }
+.btn-submit.loading { gap:0; }
 
 /* Gold variant for gamepass submit */
 .btn-gold {
