@@ -7,7 +7,7 @@
     <title>Rose Admin — Login</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/style.css">
     <style>
         .admin-login-layout {
             display: flex;
@@ -116,7 +116,7 @@
 
 <div class="toast-wrap" id="toastWrap" role="status" aria-live="polite"></div>
 
-<script src="../assets/js/main.js"></script>
+<script src="/assets/js/main.js"></script>
 <script>
 document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -140,7 +140,7 @@ document.getElementById('adminLoginForm').addEventListener('submit', function(e)
         if (data.success) {
             localStorage.setItem('roseAdminToken', data.token);
             localStorage.setItem('roseAdminUser', data.username);
-            window.location.href = '/';
+            window.location.href = '/admin';
         } else {
             btn.disabled = false;
             err.textContent = data.error || 'Wrong credentials.';

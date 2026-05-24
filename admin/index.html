@@ -7,7 +7,7 @@
     <title>Rose Admin — Panel</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/style.css">
     <style>
         .multi-select { position:relative; }
         .multi-select-trigger { display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:40px;padding:6px 10px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--surface-1);width:100%; }
@@ -272,7 +272,7 @@
 
 <div class="toast-wrap" id="toastWrap" role="status" aria-live="polite"></div>
 
-<script src="../assets/js/main.js"></script>
+<script src="/assets/js/main.js"></script>
 <script>
 const ADMIN_USER = localStorage.getItem('roseAdminUser') || 'admin';
 let editingKey = null;
@@ -280,7 +280,7 @@ let adminSessionTimer = null;
 
 (function() {
     const token = localStorage.getItem('roseAdminToken');
-    if (!token) { window.location.href = 'login.html'; return; }
+    if (!token) { window.location.href = '/admin/login'; return; }
     loadDashboard(); loadKeysTable(); loadLogs(); loadAdmins(); loadProducts();
     document.body.classList.add('scrollable');
     startAdminSessionCheck();
@@ -756,7 +756,7 @@ function deleteProduct(id, name) {
 function handleLogout() {
     localStorage.removeItem('roseAdminToken');
     localStorage.removeItem('roseAdminUser');
-    window.location.href = 'login.html';
+    window.location.href = '/admin/login';
 }
 
 function escapeHtml(str) {
