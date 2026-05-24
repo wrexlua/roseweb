@@ -620,6 +620,26 @@ function deleteAdmin(username) {
     });
 }
 
+/* ── FILE UPLOAD ──────────────────────────────────────── */
+function uploadProductFile(id) {
+    const input = document.getElementById('file_' + id);
+    const file = input.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    fetch('/api/admin/products/' + id + '/upload', {
+        method: 'POST',
+        body: fd
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            showToast('File uploaded!', 'success');
+            document.getElementById('fname_' + id).textContent = d.filename;
+            loadProducts();
+        } else showToast(d.error || 'Upload failed.', 'error');
+    }).catch(() => showToast('Upload error.', 'error'));
+    input.value = '';
+}
+
 function changeMyUsername() {
     const newName = document.getElementById('changeUserInput').value.trim();
     if (!newName || newName.length < 2) { showToast('Username must be at least 2 chars.', 'error'); return; }
@@ -641,26 +661,6 @@ function changeMyPassword() {
     const pass = document.getElementById('changePassInput').value.trim();
     if (!cur) { showToast('Enter current password.', 'error'); return; }
     if (!pass || pass.length < 4) { showToast('New password must be at least 4 chars.', 'error'); return; }
-/* ── FILE UPLOAD ──────────────────────────────────────── */
-function uploadProductFile(id) {
-    const input = document.getElementById('file_' + id);
-    const file = input.files[0];
-    if (!file) return;
-    const fd = new FormData();
-    fd.append('file', file);
-    fetch('/api/admin/products/' + id + '/upload', {
-        method: 'POST',
-        body: fd
-    }).then(r => r.json()).then(d => {
-        if (d.success) {
-            showToast('File uploaded!', 'success');
-            document.getElementById('fname_' + id).textContent = d.filename;
-            loadProducts();
-        } else showToast(d.error || 'Upload failed.', 'error');
-    }).catch(() => showToast('Upload error.', 'error'));
-    input.value = '';
-}
-
     fetch('/api/admin/admins/' + ADMIN_USER + '/password', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
