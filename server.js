@@ -6,6 +6,8 @@ require('dotenv').config();
 
 const { Pool } = require('pg');
 const https = require('https');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 * 1024 } });
 const pgPool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 const app = express();
@@ -492,6 +494,45 @@ app.put('/api/admin/admins/:username/password', async (req, res) => {
     res.json({ success: true });
 });
 
+/* ── PRODUCT FILE UPLOAD ──────────────────────────────── */
+app.post('/api/admin/products/:id/upload', upload.single('file'), async (req, res) => {
+    const id = req.params.id;
+    if (!req.file) return res.json({ success: false, error: 'No file provided.' });
+
+    const ext = path.extname(req.file.originalname);
+    const filename = id + ext;
+    const bucket = 'product-files';
+
+    const { data: buckets } = await supabase.storage.listBuckets();
+    if (!buckets?.find(b => b.name === bucket)) {
+        await supabase.storage.createBucket(bucket, { public: true });
+    }
+
+    await supabase.storage.from(bucket).upload(filename, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true
+    });
+
+    const { data: pub } = supabase.storage.from(bucket).getPublicUrl(filename);
+    const downloadUrl = pub?.publicUrl || '';
+
+    let existing;
+    try { const r = await supabase.from('products').select('id').eq('id', id).single(); existing = r.data; } catch { existing = null; }
+    if (existing) {
+        await supabase.from('products').update({ download_url: downloadUrl, last_update: new Date().toLocaleDateString('tr-TR') }).eq('id', id);
+    }
+
+    await addLog('PRODUCT_UPDATE', `File uploaded for ${id}: ${req.file.originalname}`);
+    res.json({ success: true, downloadUrl, filename: req.file.originalname });
+});
+
+app.get('/api/download/:productId', async (req, res) => {
+    const products = await getProducts();
+    const product = products.find(p => p.id === req.params.productId);
+    if (!product || !product.downloadUrl) return res.status(404).json({ error: 'Not found' });
+    res.redirect(product.downloadUrl);
+});
+
 /* ── PRODUCTS (products table) ────────────────────────── */
 app.get('/api/config/products', async (req, res) => {
     const products = await getProducts();
@@ -549,6 +590,16 @@ app.delete('/api/admin/products/:id', async (req, res) => {
     await addLog('PRODUCT_DELETE', `Product deleted: ${removed.name} (${removed.id})`);
     res.json({ success: true });
 });
+
+async function ensureStorageBucket() {
+    try {
+        const { data: buckets } = await supabase.storage.listBuckets();
+        if (!buckets?.find(b => b.name === 'product-files')) {
+            await supabase.storage.createBucket('product-files', { public: true });
+        }
+    } catch {}
+}
+ensureStorageBucket();
 
 setInterval(cleanupSessions, 3600000);
 

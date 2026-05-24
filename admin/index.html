@@ -239,7 +239,7 @@
                 <div class="panel-header"><span class="panel-title">Product Settings</span></div>
                 <div style="overflow-x:auto;">
                     <table class="data-table">
-                        <thead><tr><th>Product</th><th>ID</th><th>Status</th><th>Download URL</th><th>Last Update</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Product</th><th>ID</th><th>Status</th><th>Download File</th><th>Last Update</th><th>Actions</th></tr></thead>
                         <tbody id="productsTableBody"><tr><td colspan="6" class="empty-row">Loading... (auto-save enabled)</td></tr></tbody>
                     </table>
                 </div>
@@ -641,6 +641,26 @@ function changeMyPassword() {
     const pass = document.getElementById('changePassInput').value.trim();
     if (!cur) { showToast('Enter current password.', 'error'); return; }
     if (!pass || pass.length < 4) { showToast('New password must be at least 4 chars.', 'error'); return; }
+/* ── FILE UPLOAD ──────────────────────────────────────── */
+function uploadProductFile(id) {
+    const input = document.getElementById('file_' + id);
+    const file = input.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    fetch('/api/admin/products/' + id + '/upload', {
+        method: 'POST',
+        body: fd
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            showToast('File uploaded!', 'success');
+            document.getElementById('fname_' + id).textContent = d.filename;
+            loadProducts();
+        } else showToast(d.error || 'Upload failed.', 'error');
+    }).catch(() => showToast('Upload error.', 'error'));
+    input.value = '';
+}
+
     fetch('/api/admin/admins/' + ADMIN_USER + '/password', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -660,7 +680,7 @@ function loadProducts() {
             return;
         }
         tbody.innerHTML = d.products.map(p => {
-            const today = new Date().toISOString().split('T')[0];
+            const fname = p.downloadUrl ? p.downloadUrl.split('/').pop() : '';
             return '<tr>' +
                 '<td style="font-weight:600;color:var(--t1)">' + escapeHtml(p.name) + '</td>' +
                 '<td style="font-size:0.78rem;color:var(--t3);font-family:\'Space Mono\',monospace;">' + escapeHtml(p.id) + '</td>' +
@@ -669,8 +689,12 @@ function loadProducts() {
                     '<option value="MAINTENANCE"' + (p.status === 'MAINTENANCE' ? ' selected' : '') + '>MAINTENANCE</option>' +
                     '<option value="OFFLINE"' + (p.status === 'OFFLINE' ? ' selected' : '') + '>OFFLINE</option>' +
                 '</select></td>' +
-                '<td><input class="form-inp" id="url_' + p.id + '" value="' + escapeHtml(p.downloadUrl || '') + '" placeholder="https://..." onchange="autoSaveProduct(\'' + p.id + '\')" style="width:100%;min-width:180px;height:32px;font-size:0.78rem;padding:0 8px;"></td>' +
-                '<td><input type="date" class="form-inp" id="date_' + p.id + '" value="' + (p.lastUpdate ? p.lastUpdate.split('.').reverse().join('-') : today) + '" onchange="autoSaveProduct(\'' + p.id + '\')" style="width:130px;height:32px;font-size:0.78rem;padding:0 8px;font-family:\'Space Mono\',monospace;"></td>' +
+                '<td><div style="display:flex;align-items:center;gap:8px;min-width:200px;">' +
+                    '<input type="file" id="file_' + p.id + '" style="display:none" onchange="uploadProductFile(\'' + p.id + '\')">' +
+                    '<button class="btn-xs fulfill" style="white-space:nowrap;" onclick="document.getElementById(\'file_' + p.id + '\').click()">Upload</button>' +
+                    '<span id="fname_' + p.id + '" style="font-size:0.75rem;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;" title="' + escapeHtml(fname) + '">' + (fname ? escapeHtml(fname) : 'No file') + '</span>' +
+                '</div></td>' +
+                '<td><input type="date" class="form-inp" id="date_' + p.id + '" value="' + (p.lastUpdate ? p.lastUpdate.split('.').reverse().join('-') : new Date().toISOString().split('T')[0]) + '" onchange="updateProductField(\'' + p.id + '\',\'lastUpdate\',this.value.split(\'-\').reverse().join(\'.\'))" style="width:130px;height:32px;font-size:0.78rem;padding:0 8px;font-family:\'Space Mono\',monospace;"></td>' +
                 '<td><button class="btn-xs del" onclick="deleteProduct(\'' + p.id + '\',\'' + escapeHtml(p.name) + '\')">Delete</button></td>' +
                 '</tr>';
         }).join('');
@@ -698,21 +722,6 @@ function updateProductField(id, field, value) {
     }).then(r => r.json()).then(d => {
         if (d.success) { showToast('Auto-saved!', 'success'); }
     }).catch(() => {});
-}
-
-function autoSaveProduct(id) {
-    const url = document.getElementById('url_' + id).value.trim();
-    const dateInput = document.getElementById('date_' + id).value;
-    const lastUpdate = dateInput ? dateInput.split('-').reverse().join('.') : '';
-
-    fetch('/api/admin/products/' + id, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ downloadUrl: url, lastUpdate })
-    }).then(r => r.json()).then(d => {
-        if (d.success) { showToast('Auto-saved!', 'success'); }
-        else showToast('Failed.', 'error');
-    }).catch(() => showToast('Connection error.', 'error'));
 }
 
 function addProduct() {
