@@ -5,6 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
 const { Pool } = require('pg');
+const https = require('https');
 const pgPool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 const app = express();
@@ -92,6 +93,56 @@ function getClientIP(req) {
     return req.socket.remoteAddress || req.ip || 'unknown';
 }
 
+/* ── Discord webhook ──────────────────────────────────── */
+const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK_URL;
+const ROSE_COLOR = 0xC85078;
+const EVENT_EMOJIS = {
+    ACTIVATE_SUCCESS: '✅', ACTIVATE_FAIL: '❌', KEY_CREATE: '🔑', KEY_DELETE: '🗑️',
+    KEY_EDIT: '✏️', IP_LOCK: '🔒', IP_RESET: '🔓', ADMIN_LOGIN: '🔐',
+    ADMIN_LOGIN_FAIL: '🚫', ADMIN_CREATE: '👤', ADMIN_DELETE: '👤',
+    ADMIN_RENAME: '✏️', ADMIN_PASSWORD: '🔑', PRODUCT_UPDATE: '📦',
+    PRODUCT_CREATE: '📦', PRODUCT_DELETE: '🗑️', SESSION_IP_MISMATCH: '⚠️',
+    SESSION_KEY_DELETED: '🗑️', SESSION_KEY_EXPIRED: '⏰', LOGS_CLEAR: '🧹'
+};
+
+function discordRequest(payload) {
+    if (!DISCORD_WEBHOOK) return;
+    try {
+        const url = new URL(DISCORD_WEBHOOK);
+        const data = JSON.stringify(payload);
+        const opts = {
+            hostname: url.hostname, path: url.pathname + url.search,
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
+        };
+        const req = https.request(opts);
+        req.write(data);
+        req.end();
+    } catch {}
+}
+
+async function sendDiscordWebhook(action, detail, username, ip) {
+    const emoji = EVENT_EMOJIS[action] || '📋';
+    const color = action.includes('FAIL') || action.includes('_DELETE') ? 0xE05050 :
+                  action.includes('SUCCESS') || action.includes('CREATE') || action.includes('LOGIN') && !action.includes('FAIL') ? ROSE_COLOR :
+                  0xC85078;
+    discordRequest({
+        embeds: [{
+            color,
+            author: { name: 'Rose Redeem Logs', icon_url: 'https://cdn.discordapp.com/embed/avatars/0.png' },
+            title: `${emoji} \`${action}\``,
+            description: detail.slice(0, 2048),
+            fields: [
+                { name: '👤 User', value: username || '—', inline: true },
+                { name: '🌐 IP', value: ip || '—', inline: true },
+                { name: '⏱ Time', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+            ],
+            timestamp: new Date().toISOString(),
+            footer: { text: 'Rose Redeem • Log System' }
+        }]
+    });
+}
+
 /* ── DB helpers ───────────────────────────────────────── */
 async function getKeys() {
     const { data } = await supabase.from('keys').select('*').order('created_at', { ascending: false });
@@ -124,6 +175,7 @@ async function addLog(action, detail, username = '', ip = '') {
         action, detail, username, ip,
         timestamp: new Date().toISOString()
     });
+    sendDiscordWebhook(action, detail, username, ip);
     const { count } = await supabase.from('logs').select('*', { count: 'exact', head: true });
     if (count > 500) {
         const { data } = await supabase.from('logs').select('id').order('id', { ascending: true }).limit(count - 500);
