@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Rose Software — Enter your key to gain access products.">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Rose Software — Activate Key</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css?v=1.3">
+</head>
+<body>
+
+<canvas id="meshCanvas"></canvas>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<div class="noise"></div>
+
+<div class="layout">
+
+    <!-- ══ LEFT PANEL ══════════════════════════════════════ -->
+    <aside class="left-panel" aria-hidden="true">
+        <div class="left-inner">
+
+            <div class="lp-brand">
+                <img src="assets/images/logo.png" alt="Rose Logo" class="brand-logo">
+                <span>Rose Software</span>
+            </div>
+
+            <div class="lp-hero">
+                <h2>Your product<br>awaits.</h2>
+                <p>Enter your 7-character key and<br>gain access products instantly.</p>
+            </div>
+
+            <div class="lp-chips">
+                <div class="chip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    Secure activation system
+                </div>
+                <div class="chip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    Instant key verification
+                </div>
+                <div class="chip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    One-time use per key
+                </div>
+            </div>
+
+            <div class="stat-cards">
+                <div class="stat-card sc-1">
+                    <span class="stat-num">Products</span>
+                    <span class="stat-lbl">Undetected Products</span>
+                    <span class="stat-delta">↑ Claim yours</span>
+                </div>
+                <div class="stat-card sc-2">
+                    <span class="stat-num">7<small>-char</small></span>
+                    <span class="stat-lbl">Key Format</span>
+                    <span class="stat-delta">↑ Always valid</span>
+                </div>
+            </div>
+
+            <p class="lp-legal">© 2026 Rose Software · Key Verification · <a href="admin/login.html" style="opacity:0.4;transition:opacity var(--fast);" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.4'">Admin Panel</a></p>
+        </div>
+    </aside>
+
+    <!-- ══ RIGHT PANEL ═════════════════════════════════════ -->
+    <main class="right-panel">
+        <div class="form-card" id="formCard">
+
+            <div class="mobile-brand">
+                <img src="assets/images/logo.png" alt="Rose Logo" class="brand-logo">
+                <span>Rose Software</span>
+            </div>
+
+            <div class="form-header">
+                <h1>Enter your key</h1>
+                <p>Type or paste your 7-character activation code</p>
+            </div>
+
+            <!-- 7 Key Boxes -->
+            <div class="key-boxes" id="key-boxes" role="group" aria-label="Activation key input">
+                <div class="key-box" data-idx="0"></div>
+                <div class="key-box" data-idx="1"></div>
+                <div class="key-box" data-idx="2"></div>
+                <div class="key-box" data-idx="3"></div>
+                <div class="key-box" data-idx="4"></div>
+                <div class="key-box" data-idx="5"></div>
+                <div class="key-box" data-idx="6"></div>
+            </div>
+
+            <input type="text" id="key-hidden" class="key-hidden-input"
+                maxlength="14" autocomplete="off" autocorrect="off"
+                autocapitalize="characters" spellcheck="false"
+                inputmode="text" aria-label="Key input">
+
+            <div class="key-counter"><span id="char-count">0</span>/7</div>
+
+            <button class="btn-submit" id="activate-btn" disabled aria-label="Activate key">
+                <span class="btn-label">Activate Key</span>
+                <span class="btn-arrow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                        <polyline points="12 5 19 12 12 19"/>
+                    </svg>
+                </span>
+                <span class="btn-spinner"></span>
+            </button>
+
+            <div class="field-error" id="key-error"></div>
+
+        </div>
+    </main>
+</div>
+
+<div class="toast-wrap" id="toastWrap" role="status" aria-live="polite"></div>
+
+<script src="assets/js/main.js?v=1.2"></script>
+</body>
+</html>

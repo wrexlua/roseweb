@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Rose Admin — Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        .multi-select { position:relative; }
+        .multi-select-trigger { display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:40px;padding:6px 10px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--surface-1);width:100%; }
+        .multi-select-trigger .tag { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(200,80,120,0.15);border-radius:4px;font-size:0.78rem;color:var(--accent-light); }
+        .multi-select-trigger .tag .remove { cursor:pointer;opacity:0.6;margin-left:2px; }
+        .multi-select-trigger .tag .remove:hover { opacity:1; }
+        .multi-select-trigger .placeholder { color:var(--t3);font-size:0.85rem; }
+        .multi-select-dropdown { display:none;position:fixed;z-index:9999;background:rgba(14,14,20,0.98);border:1px solid var(--border);border-radius:var(--radius-xs);padding:6px;max-height:220px;overflow-y:auto;min-width:200px;box-shadow:0 12px 40px rgba(0,0,0,0.6); }
+        .multi-select.open .multi-select-dropdown { display:block; }
+        .multi-select-dropdown label { display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:4px;cursor:pointer;font-size:0.85rem;color:var(--t2);transition:background var(--fast); }
+        .multi-select-dropdown label:hover { background:rgba(200,80,120,0.08); }
+        .multi-select-dropdown input { accent-color:var(--accent); }
+        .section { display:none; }
+        .section.active { display:block; }
+        .chart-row { display:flex;gap:20px;flex-wrap:wrap; }
+        .chart-box { flex:1;min-width:280px; }
+        .chart-bar { display:flex;align-items:flex-end;gap:4px;height:120px;padding:8px 0 4px;overflow:hidden;max-width:100%; }
+        .chart-bar-item { flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;max-width:60px; }
+        .chart-bar-fill { width:100%;max-width:32px;border-radius:4px 4px 0 0;background:linear-gradient(to top,var(--accent-dark),var(--accent));transition:height 0.8s var(--ease);min-height:2px; }
+        .chart-bar-fill:hover { opacity:0.8; }
+        .chart-bar-label { font-size:0.6rem;color:var(--t3);font-family:'Space Mono',monospace; }
+        .chart-bar-value { font-size:0.7rem;color:var(--t1);font-weight:700;font-family:'Space Mono',monospace; }
+        .analytics-grid { display:grid;grid-template-columns:2fr 1fr;gap:16px;min-width:0; }
+        @media(max-width:900px){ .analytics-grid{grid-template-columns:1fr;} }
+        .analytics-grid .panel { min-width:0;overflow:hidden; }
+        .analytics-grid .panel > div { overflow-x:auto; }
+        .product-chip { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(200,80,120,0.1);border-radius:4px;font-size:0.75rem;color:var(--accent-light);margin:1px 2px; }
+        .stat-item-sm { background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;text-align:center; }
+        .stat-item-sm-val { font-size:1.6rem;font-weight:800;letter-spacing:-0.03em;line-height:1;margin-bottom:4px; }
+        .stat-item-sm-lbl { font-size:0.65rem;color:var(--t3);text-transform:uppercase;letter-spacing:0.06em; }
+        .mini-stats { display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:20px; }
+        .status-select { padding:6px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--t1);font-family:inherit;font-size:0.78rem;font-weight:600;cursor:pointer;outline:none;transition:border-color var(--fast),background var(--fast);min-width:130px;text-align:center; }
+        .status-select:hover { border-color:rgba(200,80,120,0.3); }
+        .status-select:focus { border-color:var(--border-focus);background:rgba(200,80,120,0.07); }
+        .status-select option { background:rgba(14,14,20,0.98);color:var(--t1); }
+    </style>
+</head>
+<body>
+
+<canvas id="meshCanvas"></canvas>
+<div class="noise"></div>
+
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <div class="sidebar-brand">
+            <div style="width:32px;height:32px;background:linear-gradient(135deg,var(--accent-dark),var(--accent));border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <span class="sidebar-brand-text">Rose Admin</span>
+        </div>
+        <ul class="sidebar-nav">
+            <li><a href="#" class="active" onclick="switchTab('dashboard')" id="nav-dashboard"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Dashboard</a></li>
+            <li><a href="#" onclick="switchTab('create')" id="nav-create"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg> Create Key</a></li>
+            <li><a href="#" onclick="switchTab('keys')" id="nav-keys"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> All Keys</a></li>
+            <li><a href="#" onclick="switchTab('logs')" id="nav-logs"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Logs</a></li>
+            <li><a href="#" onclick="switchTab('admins')" id="nav-admins"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Admins</a></li>
+            <li><a href="#" onclick="switchTab('products')" id="nav-products"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Products</a></li>
+            <li><a href="#" onclick="switchTab('settings')" id="nav-settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Settings</a></li>
+        </ul>
+        <div class="sidebar-logout"><a href="#" onclick="handleLogout()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Logout</a></div>
+    </aside>
+
+    <main class="admin-content">
+
+        <!-- ══ DASHBOARD ══ -->
+        <div class="section active" id="section-dashboard">
+            <h2 class="page-heading">Dashboard</h2>
+            <p class="page-sub">Full analytics & overview.</p>
+
+            <div class="stats-row" id="statsRow">
+                <div class="stat-item purple"><div class="stat-item-val" id="statTotal">0</div><div class="stat-item-lbl">Total Keys</div></div>
+                <div class="stat-item gold"><div class="stat-item-val" id="statActive">0</div><div class="stat-item-lbl">Active Keys</div></div>
+                <div class="stat-item blue"><div class="stat-item-val" id="statTodayAct">0</div><div class="stat-item-lbl">Today Activations</div></div>
+                <div class="stat-item green"><div class="stat-item-val" id="statWeekAct">0</div><div class="stat-item-lbl">This Week</div></div>
+                <div class="stat-item red"><div class="stat-item-val" id="statExpired">0</div><div class="stat-item-lbl">Expired</div></div>
+                <div class="stat-item" style="border-color:rgba(200,80,120,0.3);"><div class="stat-item-val" style="color:var(--accent-light);" id="statTodayKeys">0</div><div class="stat-item-lbl">Created Today</div></div>
+            </div>
+
+            <div class="analytics-grid">
+                <div class="panel">
+                    <div class="panel-header"><span class="panel-title">Activations Timeline (Last 7 Days)</span></div>
+                    <div style="padding:8px 20px 20px;">
+                        <div class="chart-bar" id="activationChart"></div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header"><span class="panel-title">Product Distribution</span></div>
+                    <div style="padding:16px 20px;" id="productDist"></div>
+                </div>
+            </div>
+
+            <div class="mini-stats" id="miniStats"></div>
+        </div>
+
+        <!-- ══ CREATE KEY ══ -->
+        <div class="section" id="section-create">
+            <h2 class="page-heading">Create Key</h2>
+            <p class="page-sub">Generate a new activation key.</p>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Key Details</span></div>
+                <div class="create-row" style="gap:16px;">
+                    <div class="form-group">
+                        <label class="form-lbl">Username</label>
+                        <input class="form-inp" id="keyUsername" placeholder="e.g. PastOwl" style="width:180px;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-lbl">Expiry (days)</label>
+                        <input class="form-inp" id="keyExpiry" type="number" value="30" min="1" style="width:100px;">
+                    </div>
+                    <div class="form-group" style="min-width:220px;position:relative;">
+                        <label class="form-lbl">Products</label>
+                        <div class="multi-select" id="productSelector">
+                            <div class="multi-select-trigger" onclick="toggleProductDropdown(event)">
+                                <span class="placeholder" id="productPlaceholder">Select products...</span>
+                                <div id="selectedTags" style="display:inline-flex;flex-wrap:wrap;gap:4px;"></div>
+                            </div>
+                            <div class="multi-select-dropdown" id="productDropdown">
+                                <label><input type="checkbox" class="prod-cb" value="Emulator" onchange="updateSelectedProducts()"> Emulator</label>
+                                <label><input type="checkbox" class="prod-cb" value="Vault" onchange="updateSelectedProducts()"> Vault</label>
+                                <label><input type="checkbox" class="prod-cb" value="Colorbot" onchange="updateSelectedProducts()"> Colorbot</label>
+                                <label><input type="checkbox" class="prod-cb" value="Serial" onchange="updateSelectedProducts()"> Serial</label>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn-create" onclick="createKey()" style="align-self:flex-end;">Generate Key</button>
+                </div>
+            </div>
+            <div class="gen-key-wrap" id="genKeyWrap" style="display:none;">
+                <div>
+                    <div class="gen-key-code" id="genKeyCode">ABC-1234</div>
+                    <div class="gen-key-meta" id="genKeyMeta"></div>
+                </div>
+                <button class="btn-copy" id="copyKeyBtn" onclick="copyGeneratedKey()">Copy Key</button>
+            </div>
+        </div>
+
+        <!-- ══ ALL KEYS ══ -->
+        <div class="section" id="section-keys">
+            <h2 class="page-heading">All Keys</h2>
+            <p class="page-sub">Manage all generated keys.</p>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Keys</span></div>
+                <div style="overflow-x:auto;">
+                    <table class="data-table keys-table">
+                        <thead><tr><th>Key</th><th>Username</th><th>Products</th><th>Expiry</th><th>Status</th><th>IP Lock</th><th>Created</th><th>Actions</th></tr></thead>
+                        <tbody id="keysTableBody"><tr><td colspan="8" class="empty-row">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Key Modal -->
+        <div id="editModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:24px;" onclick="if(event.target===this)closeEditModal()">
+            <div style="background:rgba(14,14,20,0.98);border:1px solid var(--border);border-radius:var(--radius);padding:28px;width:100%;max-width:460px;backdrop-filter:blur(20px);">
+                <h3 style="font-size:1.2rem;font-weight:700;margin-bottom:4px;color:var(--t1);">Edit Key</h3>
+                <p style="font-size:0.85rem;color:var(--t2);margin-bottom:20px;" id="editKeyLabel">Editing: </p>
+                <div class="field">
+                    <label style="color:var(--t2);font-size:0.8rem;font-weight:600;text-transform:uppercase;">Expiry Date</label>
+                    <input type="date" id="editExpiry" class="form-inp" style="width:100%;">
+                </div>
+                <div class="field">
+                    <label style="color:var(--t2);font-size:0.8rem;font-weight:600;text-transform:uppercase;">Products</label>
+                    <div style="display:flex;flex-direction:column;gap:6px;padding:8px 0;">
+                        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--t2);cursor:pointer;"><input type="checkbox" class="edit-prod-cb" value="Emulator" style="accent-color:var(--accent);"> Emulator</label>
+                        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--t2);cursor:pointer;"><input type="checkbox" class="edit-prod-cb" value="Vault" style="accent-color:var(--accent);"> Vault</label>
+                        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--t2);cursor:pointer;"><input type="checkbox" class="edit-prod-cb" value="Colorbot" style="accent-color:var(--accent);"> Colorbot</label>
+                        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--t2);cursor:pointer;"><input type="checkbox" class="edit-prod-cb" value="Serial" style="accent-color:var(--accent);"> Serial</label>
+                    </div>
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+                    <button class="btn-xs del" onclick="closeEditModal()" style="height:38px;padding:0 18px;font-size:0.85rem;">Cancel</button>
+                    <button class="btn-xs fulfill" onclick="saveEditKey()" style="height:38px;padding:0 18px;font-size:0.85rem;">Save Changes</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ LOGS ══ -->
+        <div class="section" id="section-logs">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                <div><h2 class="page-heading">Logs</h2><p class="page-sub">Recent activity with IP tracking.</p></div>
+                <button class="btn-xs del" onclick="clearLogs()" style="height:36px;padding:0 16px;">Clear Logs</button>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Activity</span></div>
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead><tr><th>Time</th><th>Action</th><th>Detail</th><th>User</th><th>IP</th></tr></thead>
+                        <tbody id="logsTableBody"><tr><td colspan="5" class="empty-row">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="pagination-wrap" id="logsPagination"></div>
+            </div>
+        </div>
+
+        <!-- ══ ADMINS ══ -->
+        <div class="section" id="section-admins">
+            <h2 class="page-heading">Admins</h2>
+            <p class="page-sub">Manage admin accounts.</p>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Create Admin</span></div>
+                <div class="create-row">
+                    <div class="form-group"><label class="form-lbl">Username</label><input class="form-inp" id="newAdminUser" placeholder="username" style="width:160px;"></div>
+                    <div class="form-group"><label class="form-lbl">Password</label><input class="form-inp" id="newAdminPass" type="password" placeholder="password" style="width:160px;"></div>
+                    <button class="btn-create" onclick="createAdmin()">Add Admin</button>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Admin List</span></div>
+                <div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Username</th><th>Actions</th></tr></thead><tbody id="adminsTableBody"><tr><td colspan="2" class="empty-row">Loading...</td></tr></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- ══ PRODUCTS ══ -->
+        <div class="section" id="section-products">
+            <h2 class="page-heading">Products</h2>
+            <p class="page-sub">Manage products, download links, and status.</p>
+
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Add New Product</span></div>
+                <div class="create-row">
+                    <div class="form-group"><label class="form-lbl">Product ID</label><input class="form-inp" id="newProdId" placeholder="e.g. aimbot" style="width:140px;"></div>
+                    <div class="form-group"><label class="form-lbl">Display Name</label><input class="form-inp" id="newProdName" placeholder="e.g. Aimbot" style="width:160px;"></div>
+                    <div class="form-group"><label class="form-lbl">Status</label><select class="status-select" id="newProdStatus" style="width:140px;"><option value="ONLINE">ONLINE</option><option value="MAINTENANCE">MAINTENANCE</option><option value="OFFLINE">OFFLINE</option></select></div>
+                    <button class="btn-create" onclick="addProduct()">Add Product</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Product Settings</span></div>
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead><tr><th>Product</th><th>ID</th><th>Status</th><th>Download URL</th><th>Last Update</th><th>Actions</th></tr></thead>
+                        <tbody id="productsTableBody"><tr><td colspan="6" class="empty-row">Loading... (auto-save enabled)</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ SETTINGS ══ -->
+        <div class="section" id="section-settings">
+            <h2 class="page-heading">Settings</h2>
+            <p class="page-sub">Account settings & preferences.</p>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Change Username</span></div>
+                <div class="create-row">
+                    <div class="form-group"><label class="form-lbl">New Username</label><input class="form-inp" id="changeUserInput" placeholder="new username" style="width:200px;"></div>
+                    <button class="btn-create" onclick="changeMyUsername()">Update Username</button>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Change Password</span></div>
+                <div class="create-row" style="gap:12px;">
+                    <div class="form-group"><label class="form-lbl">Current Password</label><input class="form-inp" id="changePassCurrent" type="password" placeholder="current password" style="width:200px;"></div>
+                    <div class="form-group"><label class="form-lbl">New Password</label><input class="form-inp" id="changePassInput" type="password" placeholder="new password" style="width:200px;"></div>
+                    <button class="btn-create" onclick="changeMyPassword()">Update Password</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div class="toast-wrap" id="toastWrap" role="status" aria-live="polite"></div>
+
+<script src="../assets/js/main.js"></script>
+<script>
+const ADMIN_USER = localStorage.getItem('roseAdminUser') || 'admin';
+let editingKey = null;
+let adminSessionTimer = null;
+
+(function() {
+    const token = localStorage.getItem('roseAdminToken');
+    if (!token) { window.location.href = 'login.html'; return; }
+    loadDashboard(); loadKeysTable(); loadLogs(); loadAdmins(); loadProducts();
+    document.body.classList.add('scrollable');
+    startAdminSessionCheck();
+})();
+
+function startAdminSessionCheck() {
+    if (adminSessionTimer) clearInterval(adminSessionTimer);
+    adminSessionTimer = setInterval(() => {
+        fetch('/api/admin/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: ADMIN_USER })
+        }).then(r => r.json()).then(d => {
+            if (!d.valid) {
+                showToast('Session expired. Logging out.', 'error');
+                handleLogout();
+            }
+        }).catch(() => {});
+    }, 15000);
+}
+
+function switchTab(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    const sec = document.getElementById('section-' + id);
+    if (sec) sec.classList.add('active');
+    document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+    const nav = document.getElementById('nav-' + id);
+    if (nav) nav.classList.add('active');
+    if (id === 'dashboard') loadDashboard();
+    if (id === 'keys') loadKeysTable();
+    if (id === 'logs') loadLogs();
+    if (id === 'admins') loadAdmins();
+    if (id === 'products') loadProducts();
+}
+
+/* ── DASHBOARD ────────────────────────────────────────── */
+function loadDashboard() {
+    fetch('/api/admin/stats').then(r => r.json()).then(d => {
+        if (!d.success) return;
+        const s = d.stats;
+        document.getElementById('statTotal').textContent = s.total;
+        document.getElementById('statActive').textContent = s.active;
+        document.getElementById('statTodayAct').textContent = s.todayAct;
+        document.getElementById('statWeekAct').textContent = s.weeklyAct;
+        document.getElementById('statExpired').textContent = s.expired;
+        document.getElementById('statTodayKeys').textContent = s.todayKeys;
+
+        renderChart(s.activationTimeline || []);
+        renderProductDist(s.productStats || {});
+        renderMiniStats(s);
+    });
+}
+
+function renderChart(timeline) {
+    const el = document.getElementById('activationChart');
+    const max = Math.max(...timeline.map(t => t.count), 1);
+    el.innerHTML = timeline.map(t =>
+        '<div class="chart-bar-item">' +
+            '<span class="chart-bar-value">' + t.count + '</span>' +
+            '<div class="chart-bar-fill" style="height:' + ((t.count / max) * 90) + 'px"></div>' +
+            '<span class="chart-bar-label">' + t.date.slice(5) + '</span>' +
+        '</div>'
+    ).join('') + '<div style="font-size:0.6rem;color:var(--t3);margin-top:4px;text-align:center;">Activations per day</div>';
+}
+
+function renderProductDist(stats) {
+    const el = document.getElementById('productDist');
+    const entries = Object.entries(stats);
+    if (!entries.length) {
+        el.innerHTML = '<div style="color:var(--t3);font-size:0.85rem;text-align:center;padding:20px;">No activation data yet.</div>';
+        return;
+    }
+    const total = entries.reduce((s, [,c]) => s + c, 0);
+    el.innerHTML = entries.map(([name, count]) =>
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
+            '<span style="width:80px;font-size:0.8rem;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(name) + '</span>' +
+            '<div style="flex:1;height:8px;background:var(--surface-1);border-radius:4px;overflow:hidden;">' +
+                '<div style="height:100%;width:' + ((count / total) * 100) + '%;background:linear-gradient(90deg,var(--accent-dark),var(--accent));border-radius:4px;transition:width 0.6s var(--ease);"></div>' +
+            '</div>' +
+            '<span style="font-family:\'Space Mono\',monospace;font-size:0.75rem;color:var(--t2);width:30px;text-align:right;">' + count + '</span>' +
+        '</div>'
+    ).join('');
+}
+
+function renderMiniStats(s) {
+    const el = document.getElementById('miniStats');
+    el.innerHTML =
+        '<div class="stat-item-sm"><div class="stat-item-sm-val" style="color:var(--accent-light);">' + s.monthlyAct + '</div><div class="stat-item-sm-lbl">Monthly Activations</div></div>' +
+        '<div class="stat-item-sm"><div class="stat-item-sm-val" style="color:var(--ok);">' + s.weeklyAct + '</div><div class="stat-item-sm-lbl">Weekly Activations</div></div>' +
+        '<div class="stat-item-sm"><div class="stat-item-sm-val" style="color:var(--gold);">' + s.todayKeys + '</div><div class="stat-item-sm-lbl">Keys Created Today</div></div>' +
+        '<div class="stat-item-sm"><div class="stat-item-sm-val" style="color:var(--t1);">' + s.total + '</div><div class="stat-item-sm-lbl">Total Keys All Time</div></div>';
+}
+
+/* ── PRODUCT SELECTOR (fixed) ─────────────────────────── */
+function toggleProductDropdown(e) {
+    e.stopPropagation();
+    const ms = document.getElementById('productSelector');
+    const dd = document.getElementById('productDropdown');
+    const isOpen = ms.classList.contains('open');
+
+    document.querySelectorAll('.multi-select.open').forEach(el => el.classList.remove('open'));
+
+    if (!isOpen) {
+        ms.classList.add('open');
+        const rect = ms.getBoundingClientRect();
+        dd.style.top = (rect.bottom + 4) + 'px';
+        dd.style.left = rect.left + 'px';
+        dd.style.width = Math.max(rect.width, 220) + 'px';
+    }
+}
+
+document.addEventListener('click', function() {
+    document.querySelectorAll('.multi-select.open').forEach(el => el.classList.remove('open'));
+});
+
+function updateSelectedProducts() {
+    const cbs = document.querySelectorAll('.prod-cb:checked');
+    const tags = document.getElementById('selectedTags');
+    const ph = document.getElementById('productPlaceholder');
+    if (cbs.length) {
+        ph.style.display = 'none';
+        tags.innerHTML = Array.from(cbs).map(cb =>
+            '<span class="tag">' + cb.value + '<span class="remove" onclick="uncheckProduct(\'' + cb.value + '\')">✕</span></span>'
+        ).join('');
+    } else {
+        ph.style.display = 'inline';
+        tags.innerHTML = '';
+    }
+}
+
+function uncheckProduct(val) {
+    document.querySelectorAll('.prod-cb').forEach(cb => { if (cb.value === val) cb.checked = false; });
+    updateSelectedProducts();
+}
+
+/* ── CREATE KEY ───────────────────────────────────────── */
+function createKey() {
+    const username = document.getElementById('keyUsername').value.trim();
+    const expiryDays = document.getElementById('keyExpiry').value;
+    const products = Array.from(document.querySelectorAll('.prod-cb:checked')).map(cb => cb.value);
+    if (!username) { showToast('Enter a username.', 'error'); return; }
+    if (!products.length) { showToast('Select at least one product.', 'error'); return; }
+    if (!expiryDays || expiryDays < 1) { showToast('Enter valid expiry.', 'error'); return; }
+
+    fetch('/api/admin/create-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, products, expiryDays: parseInt(expiryDays) })
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            const wrap = document.getElementById('genKeyWrap');
+            wrap.style.display = 'flex';
+            document.getElementById('genKeyCode').textContent = d.key.key;
+            document.getElementById('genKeyMeta').textContent = 'For ' + d.key.username + ' · Expires ' + d.key.expiry + ' · Products: ' + d.key.products.join(', ');
+            showToast('Key created!', 'success');
+            loadDashboard();
+        } else showToast(d.error || 'Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
+}
+
+function copyGeneratedKey() {
+    const key = document.getElementById('genKeyCode').textContent;
+    navigator.clipboard.writeText(key).then(() => {
+        const btn = document.getElementById('copyKeyBtn');
+        btn.textContent = 'Copied!'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy Key'; btn.classList.remove('copied'); }, 2000);
+    }).catch(() => showToast('Failed to copy.', 'error'));
+}
+
+/* ── KEYS TABLE ───────────────────────────────────────── */
+function loadKeysTable() {
+    const tbody = document.getElementById('keysTableBody');
+    fetch('/api/admin/keys').then(r => r.json()).then(d => {
+        if (!d.success || !d.keys.length) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty-row"><div class="empty-row-icon">🔑</div><p>No keys yet.</p></td></tr>';
+            return;
+        }
+        const now = new Date();
+        tbody.innerHTML = d.keys.map(k => {
+            const expired = new Date(k.expiry) < now;
+            const sc = expired ? 'used' : 'available';
+            const st = expired ? 'Expired' : 'Active';
+            const created = new Date(k.created_at).toLocaleDateString('tr-TR');
+            const ipLock = k.locked_ip || '-';
+            return '<tr><td class="key-cell">' + escapeHtml(k.key) + '</td><td>' + escapeHtml(k.username) + '</td>' +
+                '<td>' + (k.products || []).map(p => '<span class="product-chip">' + escapeHtml(p) + '</span>').join('') + '</td>' +
+                '<td style="font-family:\'Space Mono\',monospace;font-size:0.8rem;">' + k.expiry + '</td>' +
+                '<td><span class="status-pip ' + sc + '"><span class="pip-dot"></span>' + st + '</span></td>' +
+                '<td style="font-size:0.72rem;font-family:\'Space Mono\',monospace;color:var(--t3);max-width:100px;overflow:hidden;text-overflow:ellipsis;" title="' + escapeHtml(ipLock) + '">' + escapeHtml(ipLock) + '</td>' +
+                '<td style="font-size:0.78rem;">' + created + '</td>' +
+                '<td><div class="action-row">' +
+                    '<button class="btn-xs fulfill" onclick="openEditModal(\'' + k.key + '\')">Edit</button>' +
+                    (k.locked_ip ? '<button class="btn-xs" style="border-color:rgba(250,204,21,0.3);color:var(--warn);background:rgba(250,204,21,0.06);" onclick="resetKeyIP(\'' + k.key + '\')">Reset IP</button>' : '') +
+                    '<button class="btn-xs del" onclick="deleteKey(\'' + k.key + '\')">Delete</button>' +
+                '</div></td></tr>';
+        }).join('');
+    });
+}
+
+function openEditModal(key) {
+    fetch('/api/admin/keys').then(r => r.json()).then(d => {
+        const k = d.keys.find(x => x.key === key);
+        if (!k) return;
+        editingKey = key;
+        document.getElementById('editKeyLabel').textContent = 'Editing: ' + key;
+        document.getElementById('editExpiry').value = k.expiry;
+        document.querySelectorAll('.edit-prod-cb').forEach(cb => cb.checked = (k.products || []).includes(cb.value));
+        document.getElementById('editModal').style.display = 'flex';
+    });
+}
+
+function closeEditModal() { document.getElementById('editModal').style.display = 'none'; editingKey = null; }
+
+function saveEditKey() {
+    if (!editingKey) return;
+    const products = Array.from(document.querySelectorAll('.edit-prod-cb:checked')).map(cb => cb.value);
+    const expiry = document.getElementById('editExpiry').value;
+    if (!products.length) { showToast('Select at least one product.', 'error'); return; }
+    if (!expiry) { showToast('Select expiry date.', 'error'); return; }
+    fetch('/api/admin/keys/' + editingKey, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ products, expiry })
+    }).then(r => r.json()).then(d => {
+        if (d.success) { showToast('Key updated!', 'success'); closeEditModal(); loadKeysTable(); loadDashboard(); }
+        else showToast(d.error || 'Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
+}
+
+function deleteKey(key) {
+    if (!confirm('Delete key ' + key + '?')) return;
+    fetch('/api/admin/keys/' + key, { method: 'DELETE' }).then(r => r.json()).then(d => {
+        if (d.success) { showToast('Key deleted.', 'success'); loadKeysTable(); loadDashboard(); }
+        else showToast(d.error || 'Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
+}
+
+function resetKeyIP(key) {
+    if (!confirm('Reset IP lock for key ' + key + '?')) return;
+    fetch('/api/admin/keys/' + key + '/reset-ip', { method: 'POST' }).then(r => r.json()).then(d => {
+        if (d.success) { showToast('IP lock reset for ' + key, 'success'); loadKeysTable(); }
+        else showToast(d.error || 'Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
+}
+
+/* ── LOGS ─────────────────────────────────────────────── */
+let logsData = [];
+let logsPage = 1;
+const LOGS_PER_PAGE = 15;
+
+function loadLogs() {
+    fetch('/api/admin/logs').then(r => r.json()).then(d => {
+        if (!d.success || !d.logs.length) {
+            document.getElementById('logsTableBody').innerHTML = '<tr><td colspan="5" class="empty-row"><div class="empty-row-icon">📝</div><p>No logs yet.</p></td></tr>';
+            document.getElementById('logsPagination').innerHTML = '';
+            return;
+        }
+        logsData = d.logs;
+        logsPage = 1;
+        renderLogsPage();
+    });
+}
+
+function renderLogsPage() {
+    const tbody = document.getElementById('logsTableBody');
+    const totalPages = Math.ceil(logsData.length / LOGS_PER_PAGE);
+    const start = (logsPage - 1) * LOGS_PER_PAGE;
+    const pageLogs = logsData.slice(start, start + LOGS_PER_PAGE);
+
+    tbody.innerHTML = pageLogs.map(l => {
+        const time = new Date(l.timestamp).toLocaleString('tr-TR');
+        let color = 'var(--t2)';
+        if (l.action.includes('SUCCESS')) color = 'var(--ok)';
+        else if (l.action.includes('FAIL') || l.action.includes('DELETE')) color = 'var(--err)';
+        else if (l.action.includes('CREATE')) color = 'var(--accent-light)';
+        else if (l.action.includes('LOGIN') && !l.action.includes('FAIL')) color = 'var(--warn)';
+        else if (l.action.includes('EDIT')) color = 'var(--accent-light)';
+        return '<tr>' +
+            '<td style="font-size:0.78rem;white-space:nowrap;">' + time + '</td>' +
+            '<td style="color:' + color + ';font-weight:600;font-size:0.8rem;">' + escapeHtml(l.action) + '</td>' +
+            '<td style="font-size:0.8rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escapeHtml(l.detail) + '">' + escapeHtml(l.detail) + '</td>' +
+            '<td style="font-size:0.8rem;">' + (l.username || '-') + '</td>' +
+            '<td style="font-size:0.75rem;font-family:\'Space Mono\',monospace;color:var(--t3);">' + (l.ip || '-') + '</td></tr>';
+    }).join('');
+
+    const pag = document.getElementById('logsPagination');
+    if (totalPages <= 1) { pag.innerHTML = ''; return; }
+    let html = '<div class="pagination">';
+    if (logsPage > 1) html += '<button class="page-btn" onclick="logsPage=' + (logsPage - 1) + ';renderLogsPage()">‹</button>';
+    for (let i = 1; i <= totalPages; i++) {
+        html += '<button class="page-btn' + (i === logsPage ? ' active' : '') + '" onclick="logsPage=' + i + ';renderLogsPage()">' + i + '</button>';
+    }
+    if (logsPage < totalPages) html += '<button class="page-btn" onclick="logsPage=' + (logsPage + 1) + ';renderLogsPage()">›</button>';
+    html += '</div>';
+    pag.innerHTML = html;
+}
+
+function clearLogs() {
+    if (!confirm('Tüm loglar silinsin mi?')) return;
+    fetch('/api/admin/clear-logs', { method: 'POST' }).then(r => r.json()).then(d => {
+        if (d.success) { showToast('Logs cleared.', 'success'); loadLogs(); }
+        else showToast('Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
+}
+
+/* ── ADMINS ───────────────────────────────────────────── */
+function loadAdmins() {
+    const tbody = document.getElementById('adminsTableBody');
+    fetch('/api/admin/admins').then(r => r.json()).then(d => {
+        if (!d.success || !d.admins.length) { tbody.innerHTML = '<tr><td colspan="2" class="empty-row">No admins.</td></tr>'; return; }
+        tbody.innerHTML = d.admins.map(a =>
+            '<tr><td>' + escapeHtml(a.username) + (a.username === ADMIN_USER ? ' <span style="font-size:0.7rem;color:var(--accent-light);">(you)</span>' : '') + '</td>' +
+            '<td>' + (a.username !== ADMIN_USER ? '<button class="btn-xs del" onclick="deleteAdmin(\'' + a.username + '\')">Delete</button>' : '<span style="font-size:0.78rem;color:var(--t3);">current</span>') + '</td></tr>'
+        ).join('');
+    });
+}
+
+function createAdmin() {
+    const u = document.getElementById('newAdminUser').value.trim();
+    const p = document.getElementById('newAdminPass').value.trim();
+    if (!u || !p) { showToast('Fill all fields.', 'error'); return; }
+    fetch('/api/admin/admins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p })
+    }).then(r => r.json()).then(d => {
+        if (d.success) { showToast('Admin created!', 'success'); document.getElementById('newAdminUser').value = ''; document.getElementById('newAdminPass').value = ''; loadAdmins(); }
+        else showToast(d.error || 'Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
+}
+
+function deleteAdmin(username) {
+    if (!confirm('Delete admin "' + username + '"?')) return;
+    fetch('/api/admin/admins/' + username, { method: 'DELETE' }).then(r => r.json()).then(d => {
+        if (d.success) { showToast('Admin deleted.', 'success'); loadAdmins(); }
+        else showToast(d.error || 'Failed.', 'error');
+    });
+}
+
+function changeMyUsername() {
+    const newName = document.getElementById('changeUserInput').value.trim();
+    if (!newName || newName.length < 2) { showToast('Username must be at least 2 chars.', 'error'); return; }
+    fetch('/api/admin/admins/' + ADMIN_USER + '/rename', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newUsername: newName })
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            showToast('Username changed to ' + d.newUsername + '! Re-login required.', 'success');
+            localStorage.setItem('roseAdminUser', d.newUsername);
+            setTimeout(() => handleLogout(), 2000);
+        } else showToast(d.error || 'Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
+}
+
+function changeMyPassword() {
+    const cur = document.getElementById('changePassCurrent').value.trim();
+    const pass = document.getElementById('changePassInput').value.trim();
+    if (!cur) { showToast('Enter current password.', 'error'); return; }
+    if (!pass || pass.length < 4) { showToast('New password must be at least 4 chars.', 'error'); return; }
+    fetch('/api/admin/admins/' + ADMIN_USER + '/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: cur, newPassword: pass })
+    }).then(r => r.json()).then(d => {
+        if (d.success) { showToast('Password changed!', 'success'); document.getElementById('changePassCurrent').value = ''; document.getElementById('changePassInput').value = ''; }
+        else showToast(d.error || 'Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
+}
+
+/* ── PRODUCTS ─────────────────────────────────────────── */
+function loadProducts() {
+    const tbody = document.getElementById('productsTableBody');
+    fetch('/api/config/products').then(r => r.json()).then(d => {
+        if (!d.success || !d.products.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-row">No products configured.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = d.products.map(p => {
+            const today = new Date().toISOString().split('T')[0];
+            return '<tr>' +
+                '<td style="font-weight:600;color:var(--t1)">' + escapeHtml(p.name) + '</td>' +
+                '<td style="font-size:0.78rem;color:var(--t3);font-family:\'Space Mono\',monospace;">' + escapeHtml(p.id) + '</td>' +
+                '<td><select class="status-select" onchange="refreshProductStatusSelect(this);updateProductField(\'' + p.id + '\',\'status\',this.value)" style="' + statusSelectStyle(p.status) + '">' +
+                    '<option value="ONLINE"' + (p.status === 'ONLINE' ? ' selected' : '') + '>ONLINE</option>' +
+                    '<option value="MAINTENANCE"' + (p.status === 'MAINTENANCE' ? ' selected' : '') + '>MAINTENANCE</option>' +
+                    '<option value="OFFLINE"' + (p.status === 'OFFLINE' ? ' selected' : '') + '>OFFLINE</option>' +
+                '</select></td>' +
+                '<td><input class="form-inp" id="url_' + p.id + '" value="' + escapeHtml(p.downloadUrl || '') + '" placeholder="https://..." onchange="autoSaveProduct(\'' + p.id + '\')" style="width:100%;min-width:180px;height:32px;font-size:0.78rem;padding:0 8px;"></td>' +
+                '<td><input type="date" class="form-inp" id="date_' + p.id + '" value="' + (p.lastUpdate ? p.lastUpdate.split('.').reverse().join('-') : today) + '" onchange="autoSaveProduct(\'' + p.id + '\')" style="width:130px;height:32px;font-size:0.78rem;padding:0 8px;font-family:\'Space Mono\',monospace;"></td>' +
+                '<td><button class="btn-xs del" onclick="deleteProduct(\'' + p.id + '\',\'' + escapeHtml(p.name) + '\')">Delete</button></td>' +
+                '</tr>';
+        }).join('');
+    });
+}
+
+function statusSelectStyle(status) {
+    const colors = { ONLINE: 'var(--ok)', MAINTENANCE: 'var(--warn)', OFFLINE: 'var(--err)' };
+    return 'border-color:' + (colors[status] || 'var(--border)') + ';color:' + (colors[status] || 'var(--t1)') + ';';
+}
+
+function refreshProductStatusSelect(el) {
+    const colors = { ONLINE: 'var(--ok)', MAINTENANCE: 'var(--warn)', OFFLINE: 'var(--err)' };
+    el.style.borderColor = colors[el.value] || 'var(--border)';
+    el.style.color = colors[el.value] || 'var(--t1)';
+}
+
+function updateProductField(id, field, value) {
+    const payload = {};
+    payload[field] = value;
+    fetch('/api/admin/products/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).then(r => r.json()).then(d => {
+        if (d.success) { showToast('Auto-saved!', 'success'); }
+    }).catch(() => {});
+}
+
+function autoSaveProduct(id) {
+    const url = document.getElementById('url_' + id).value.trim();
+    const dateInput = document.getElementById('date_' + id).value;
+    const lastUpdate = dateInput ? dateInput.split('-').reverse().join('.') : '';
+
+    fetch('/api/admin/products/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ downloadUrl: url, lastUpdate })
+    }).then(r => r.json()).then(d => {
+        if (d.success) { showToast('Auto-saved!', 'success'); }
+        else showToast('Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
+}
+
+function addProduct() {
+    const id = document.getElementById('newProdId').value.trim().toLowerCase().replace(/\s+/g, '-');
+    const name = document.getElementById('newProdName').value.trim();
+    const status = document.getElementById('newProdStatus').value;
+    if (!id || !name) { showToast('Fill all fields.', 'error'); return; }
+    fetch('/api/admin/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name, status })
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            showToast('Product added!', 'success');
+            document.getElementById('newProdId').value = '';
+            document.getElementById('newProdName').value = '';
+            loadProducts();
+            loadDashboard();
+        } else showToast(d.error || 'Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
+}
+
+function deleteProduct(id, name) {
+    if (!confirm('Delete product "' + name + '" (' + id + ')?\nThis will NOT delete keys. Keys using this product will still reference it.')) return;
+    fetch('/api/admin/products/' + id, { method: 'DELETE' }).then(r => r.json()).then(d => {
+        if (d.success) { showToast('Product deleted.', 'success'); loadProducts(); loadDashboard(); }
+        else showToast(d.error || 'Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
+}
+
+/* ── LOGOUT ───────────────────────────────────────────── */
+function handleLogout() {
+    localStorage.removeItem('roseAdminToken');
+    localStorage.removeItem('roseAdminUser');
+    window.location.href = 'login.html';
+}
+
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = String(str || '');
+    return d.innerHTML;
+}
+</script>
+</body>
+</html>

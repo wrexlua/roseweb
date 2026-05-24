@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Rose Admin — Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        .admin-login-layout {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px;
+            position: relative;
+            z-index: 10;
+        }
+        .admin-login-box {
+            width: 100%;
+            max-width: 400px;
+            background: rgba(6,6,8,0.8);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            backdrop-filter: blur(20px);
+        }
+        .admin-login-box h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            margin-bottom: 4px;
+            background: linear-gradient(145deg, #fff 30%, rgba(255,255,255,0.6));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .admin-login-box p {
+            font-size: 0.875rem;
+            color: var(--t2);
+            margin-bottom: 24px;
+        }
+        .admin-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--t1);
+            margin-bottom: 28px;
+        }
+        .admin-logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 16px;
+        }
+        .field-error { display: none; font-size:0.8rem; color:var(--err); margin-top:-12px; margin-bottom:16px; }
+        .field-error.show { display: block; }
+    </style>
+</head>
+<body>
+
+<canvas id="meshCanvas"></canvas>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<div class="noise"></div>
+
+<div class="admin-login-layout">
+    <div class="admin-login-box">
+        <div class="admin-logo">
+            <div class="admin-logo-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <span>Rose Admin</span>
+        </div>
+
+        <h1>Admin access</h1>
+        <p>Sign in with your admin credentials.</p>
+
+        <div id="loginError" class="field-error"></div>
+
+        <form id="adminLoginForm">
+            <div class="field">
+                <label for="username">Username</label>
+                <div class="field-wrap">
+                    <input type="text" id="username" class="no-icon" placeholder="admin" autocomplete="off" required>
+                </div>
+            </div>
+            <div class="field">
+                <label for="password">Password</label>
+                <div class="field-wrap">
+                    <input type="password" id="password" class="no-icon" placeholder="Enter password" autocomplete="off" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit" id="loginBtn">
+                <span class="btn-label">Sign In</span>
+                <span class="btn-spinner"></span>
+            </button>
+        </form>
+
+        <div style="margin-top: 20px; text-align: center;">
+            <a href="../index.html" style="font-size: 0.8rem; color: var(--t3); transition: color var(--fast);">← Back to home</a>
+        </div>
+    </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap" role="status" aria-live="polite"></div>
+
+<script src="../assets/js/main.js"></script>
+<script>
+document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    const err = document.getElementById('loginError');
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    err.classList.remove('show');
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.classList.remove('loading');
+        if (data.success) {
+            localStorage.setItem('roseAdminToken', data.token);
+            localStorage.setItem('roseAdminUser', data.username);
+            window.location.href = 'index.html';
+        } else {
+            btn.disabled = false;
+            err.textContent = data.error || 'Wrong credentials.';
+            err.classList.add('show');
+        }
+    })
+    .catch(() => {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        err.textContent = 'Connection error.';
+        err.classList.add('show');
+    });
+});
+</script>
+</body>
+</html>
