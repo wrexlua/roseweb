@@ -8,6 +8,49 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
+    <style>
+        .popup-overlay {
+            position:fixed; inset:0; z-index:10000;
+            background:rgba(0,0,0,0.6); backdrop-filter:blur(8px);
+            display:none; align-items:center; justify-content:center;
+            animation:popupFadeIn 0.25s var(--ease);
+        }
+        .popup-overlay.show { display:flex; }
+        @keyframes popupFadeIn { from { opacity:0; } to { opacity:1; } }
+        .popup-box {
+            background:rgba(14,14,20,0.98); border:1px solid var(--border);
+            border-radius:var(--radius); padding:32px;
+            max-width:380px; width:90%; position:relative;
+            text-align:center; animation:popupScaleIn 0.3s cubic-bezier(0.16,1,0.3,1);
+            box-shadow:0 24px 64px rgba(0,0,0,0.5);
+        }
+        @keyframes popupScaleIn { from { opacity:0; transform:scale(0.85) translateY(12px); } to { opacity:1; transform:scale(1) translateY(0); } }
+        .popup-close {
+            position:absolute; top:14px; right:14px;
+            width:32px; height:32px; border-radius:8px;
+            background:var(--surface-1); border:1px solid var(--border);
+            color:var(--t3); cursor:pointer; display:flex;
+            align-items:center; justify-content:center;
+            transition:all var(--fast);
+        }
+        .popup-close:hover { background:rgba(248,113,113,0.1); border-color:rgba(248,113,113,0.3); color:var(--err); }
+        .popup-icon {
+            width:52px; height:52px; border-radius:14px;
+            background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.25);
+            display:flex; align-items:center; justify-content:center;
+            color:var(--err); margin:0 auto 16px;
+        }
+        .popup-title { font-size:1.2rem; font-weight:700; color:var(--t1); margin-bottom:8px; }
+        .popup-text { font-size:0.85rem; color:var(--t2); line-height:1.5; margin-bottom:24px; }
+        .popup-btn {
+            width:100%; height:42px; border-radius:var(--radius-xs);
+            background:linear-gradient(135deg,var(--accent-dark),var(--accent));
+            border:none; color:#fff; font-size:0.9rem; font-weight:700;
+            cursor:pointer; transition:all var(--fast);
+        }
+        .popup-btn:hover { box-shadow:0 4px 20px var(--accent-glow); transform:translateY(-1px); }
+        .popup-btn:active { transform:none; }
+    </style>
 </head>
 <body>
 
@@ -48,6 +91,20 @@
 </div>
 
 <div class="toast-wrap" id="toastWrap" role="status" aria-live="polite"></div>
+
+<div class="popup-overlay" id="popupOverlay" onclick="closePopup()">
+    <div class="popup-box" id="popupBox">
+        <button class="popup-close" onclick="closePopup()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="popup-icon" id="popupIcon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        </div>
+        <div class="popup-title" id="popupTitle">Product Unavailable</div>
+        <div class="popup-text" id="popupText">This product is currently offline.</div>
+        <button class="popup-btn" onclick="closePopup()">OK</button>
+    </div>
+</div>
 
 <script src="assets/js/main.js"></script>
 <script>
@@ -156,7 +213,7 @@
                 if (canDownload) return '<a href="' + escapeHtml(dlUrl) + '" class="product-arrow" target="_blank">' +
                     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>';
                 if (!allowed) return '<button class="product-arrow" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>';
-                if (!online) return '<button class="product-arrow" onclick="showToast(\'Product is ' + status + '\',\'info\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>';
+                if (!online) return '<button class="product-arrow" onclick="showPopup(\'' + status + '\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>';
                 return '<button class="product-arrow" onclick="showToast(\'No download link configured.\',\'info\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>';
             }
 
@@ -201,6 +258,27 @@ function escapeHtml(str) {
     const d = document.createElement('div');
     d.textContent = String(str || '');
     return d.innerHTML;
+}
+
+function showPopup(status) {
+    const overlay = document.getElementById('popupOverlay');
+    const title = document.getElementById('popupTitle');
+    const text = document.getElementById('popupText');
+    const icon = document.getElementById('popupIcon');
+    const statusLower = status.toLowerCase();
+    const statusColor = status === 'ONLINE' ? 'var(--ok)' : status === 'MAINTENANCE' ? 'var(--warn)' : 'var(--err)';
+    title.textContent = 'Product ' + status;
+    text.textContent = 'This product is currently ' + statusLower + '. Downloads are disabled until the status returns to ONLINE.';
+    icon.style.color = statusColor;
+    icon.style.background = status === 'MAINTENANCE' ? 'rgba(250,204,21,0.1)' : 'rgba(248,113,113,0.1)';
+    icon.style.borderColor = status === 'MAINTENANCE' ? 'rgba(250,204,21,0.25)' : 'rgba(248,113,113,0.25)';
+    overlay.classList.add('show');
+    if (window._popupTimer) clearTimeout(window._popupTimer);
+    window._popupTimer = setTimeout(closePopup, 5000);
+}
+function closePopup() {
+    document.getElementById('popupOverlay').classList.remove('show');
+    if (window._popupTimer) { clearTimeout(window._popupTimer); window._popupTimer = null; }
 }
 </script>
 </body>
