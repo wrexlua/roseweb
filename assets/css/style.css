@@ -164,7 +164,7 @@ body.scrollable { overflow: auto; }
     border-radius: 8px;
     object-fit: contain;
     mix-blend-mode: screen;
-    filter: drop-shadow(0 4px 12px rgba(120, 119, 198, 0.4));
+    filter: drop-shadow(0 4px 12px rgba(200, 80, 120, 0.4));
     flex-shrink: 0;
     font-size: 18px;
 }
