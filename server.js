@@ -505,8 +505,8 @@ app.post('/api/admin/products/:id/upload', upload.single('file'), async (req, re
     const id = req.params.id;
     if (!req.file) return res.json({ success: false, error: 'No file provided.' });
 
-    const ext = path.extname(req.file.originalname);
-    const filename = id + ext;
+    const safeName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filename = id + '/' + safeName;
     const bucket = 'product-files';
 
     const { data: buckets } = await supabase.storage.listBuckets();

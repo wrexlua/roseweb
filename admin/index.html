@@ -159,6 +159,19 @@
             </div>
         </div>
 
+        <!-- Upload Progress Modal -->
+        <div id="uploadModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:24px;">
+            <div style="background:rgba(14,14,20,0.98);border:1px solid var(--border);border-radius:var(--radius);padding:32px;width:100%;max-width:400px;backdrop-filter:blur(20px);text-align:center;">
+                <div id="uploadSpinner" style="width:48px;height:48px;border:3px solid rgba(200,80,120,0.2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;"></div>
+                <h3 style="font-size:1.1rem;font-weight:700;color:var(--t1);margin-bottom:8px;" id="uploadTitle">Uploading...</h3>
+                <p style="font-size:0.85rem;color:var(--t2);word-break:break-all;" id="uploadFilename"></p>
+                <div id="uploadDone" style="display:none;margin-top:12px;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <p style="color:var(--ok);font-weight:600;margin-top:8px;">Upload complete!</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Edit Key Modal -->
         <div id="editModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:24px;" onclick="if(event.target===this)closeEditModal()">
             <div style="background:rgba(14,14,20,0.98);border:1px solid var(--border);border-radius:var(--radius);padding:28px;width:100%;max-width:460px;backdrop-filter:blur(20px);">
@@ -625,6 +638,18 @@ function uploadProductFile(id) {
     const input = document.getElementById('file_' + id);
     const file = input.files[0];
     if (!file) return;
+    input.value = '';
+
+    const modal = document.getElementById('uploadModal');
+    const spinner = document.getElementById('uploadSpinner');
+    const title = document.getElementById('uploadTitle');
+    const fname = document.getElementById('uploadFilename');
+    const done = document.getElementById('uploadDone');
+    spinner.style.display = 'block'; done.style.display = 'none';
+    title.textContent = 'Uploading...';
+    fname.textContent = file.name;
+    modal.style.display = 'flex';
+
     const fd = new FormData();
     fd.append('file', file);
     fetch('/api/admin/products/' + id + '/upload', {
@@ -632,12 +657,18 @@ function uploadProductFile(id) {
         body: fd
     }).then(r => r.json()).then(d => {
         if (d.success) {
-            showToast('File uploaded!', 'success');
+            spinner.style.display = 'none'; done.style.display = 'block';
+            title.textContent = 'Upload complete!';
             document.getElementById('fname_' + id).textContent = d.filename;
-            loadProducts();
-        } else showToast(d.error || 'Upload failed.', 'error');
-    }).catch(() => showToast('Upload error.', 'error'));
-    input.value = '';
+            setTimeout(() => { modal.style.display = 'none'; loadProducts(); }, 1200);
+        } else {
+            modal.style.display = 'none';
+            showToast(d.error || 'Upload failed.', 'error');
+        }
+    }).catch(() => {
+        modal.style.display = 'none';
+        showToast('Upload error.', 'error');
+    });
 }
 
 function changeMyUsername() {
