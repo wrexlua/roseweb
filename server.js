@@ -4,6 +4,9 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
+const { Pool } = require('pg');
+const pgPool = new Pool({ connectionString: process.env.DATABASE_URL });
+
 const app = express();
 const PORT = 3000;
 
@@ -27,25 +30,60 @@ app.use((req, res, next) => {
 app.use(express.static(__dirname));
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 
-/* ── Server-side sessions ──────────────────────────── */
-const sessions = new Map();
+/* ── Server-side sessions (Supabase-backed) ──────────── */
 const SESSION_TTL = 24 * 60 * 60 * 1000;
 
-function createSession(key, username, ip) {
+async function ensureSessionsTable() {
+    await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            key TEXT NOT NULL,
+            username TEXT NOT NULL,
+            ip TEXT NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    `);
+}
+ensureSessionsTable().catch(() => {});
+
+async function createSession(key, username, ip) {
     const token = crypto.randomBytes(24).toString('hex');
-    sessions.set(token, { key, username, ip, createdAt: Date.now() });
+    try {
+        await supabase.from('sessions').insert({ token, key, username, ip });
+    } catch (e) {
+        try { await pgPool.query('INSERT INTO sessions (token, key, username, ip) VALUES ($1,$2,$3,$4)', [token, key, username, ip]); } catch {}
+    }
     return token;
 }
 
-function getSession(token) {
-    const s = sessions.get(token);
-    if (!s) return null;
-    if (Date.now() - s.createdAt > SESSION_TTL) { sessions.delete(token); return null; }
-    return s;
+async function getSession(token) {
+    let rows;
+    try {
+        const { data } = await supabase.from('sessions').select('*').eq('token', token).single();
+        rows = data ? [data] : [];
+    } catch {
+        try { const r = await pgPool.query('SELECT * FROM sessions WHERE token = $1', [token]); rows = r.rows; } catch { rows = []; }
+    }
+    if (!rows.length) return null;
+    const s = rows[0];
+    if (Date.now() - new Date(s.created_at).getTime() > SESSION_TTL) {
+        try { await supabase.from('sessions').delete().eq('token', token); } catch {}
+        return null;
+    }
+    return { key: s.key, username: s.username, ip: s.ip };
 }
 
-function deleteSessionByKey(key) {
-    for (const [token, s] of sessions) if (s.key === key) sessions.delete(token);
+async function deleteSessionByKey(key) {
+    try { await supabase.from('sessions').delete().eq('key', key); } catch {}
+}
+
+async function deleteSessionToken(token) {
+    try { await supabase.from('sessions').delete().eq('token', token); } catch {}
+}
+
+async function cleanupSessions() {
+    const cutoff = new Date(Date.now() - SESSION_TTL).toISOString();
+    try { await supabase.from('sessions').delete().lt('created_at', cutoff); } catch {}
 }
 
 function getClientIP(req) {
@@ -151,7 +189,7 @@ app.post('/api/activate', async (req, res) => {
 
     await addLog('ACTIVATE_SUCCESS', `Key activated: ${cleanKey} | Products: ${found.products.join(', ')}`, found.username, ip);
 
-    const sessionToken = createSession(cleanKey, found.username, ip);
+    const sessionToken = await createSession(cleanKey, found.username, ip);
     const products = await getProducts();
     res.json({
         success: true, sessionToken,
@@ -170,12 +208,12 @@ app.post('/api/check-session', async (req, res) => {
     const { token } = req.body;
     if (!token || typeof token !== 'string') return res.json({ valid: false, ok: false, stat: 0, chk: '0' });
 
-    const session = getSession(token);
+    const session = await getSession(token);
     if (!session) return res.json({ valid: false, ok: false, stat: 0, chk: '0' });
 
     const ip = getClientIP(req);
     if (session.ip !== ip) {
-        sessions.delete(token);
+        await deleteSessionToken(token);
         await addLog('SESSION_IP_MISMATCH', `Session IP mismatch: expected ${session.ip}, got ${ip}`, session.username, ip);
         return res.json({ valid: false, ok: false, stat: 0, chk: '0' });
     }
@@ -184,7 +222,7 @@ app.post('/api/check-session', async (req, res) => {
     try { const r = await supabase.from('keys').select('*').eq('key', session.key).single(); found = r.data; } catch { found = null; }
 
     if (!found || new Date(found.expiry) < new Date()) {
-        sessions.delete(token);
+        await deleteSessionToken(token);
         if (!found) await addLog('SESSION_KEY_DELETED', `Session invalidated: key ${session.key} not found`, session.username, ip);
         else await addLog('SESSION_KEY_EXPIRED', `Session invalidated: key ${session.key} expired`, session.username, ip);
         return res.json({ valid: false, ok: false, stat: 0, chk: '0' });
@@ -314,7 +352,7 @@ app.delete('/api/admin/keys/:key', async (req, res) => {
 
     if (removed) {
         await supabase.from('keys').delete().eq('key', targetKey);
-        deleteSessionByKey(targetKey);
+        await deleteSessionByKey(targetKey);
         await addLog('KEY_DELETE', `Key deleted: ${targetKey}`);
         res.json({ success: true });
     } else {
@@ -459,6 +497,8 @@ app.delete('/api/admin/products/:id', async (req, res) => {
     await addLog('PRODUCT_DELETE', `Product deleted: ${removed.name} (${removed.id})`);
     res.json({ success: true });
 });
+
+setInterval(cleanupSessions, 3600000);
 
 if (require.main === module) {
     app.listen(PORT, () => {
