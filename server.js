@@ -21,12 +21,6 @@ app.use((req, res, next) => {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Cache-Control', 'no-store');
-    if (req.method === 'POST' || req.method === 'PUT') {
-        const ct = req.headers['content-type'] || '';
-        if (!ct.includes('application/json')) {
-            return res.status(400).json({ success: false, error: 'Invalid content type.' });
-        }
-    }
     next();
 });
 
