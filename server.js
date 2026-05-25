@@ -418,8 +418,11 @@ app.get('/api/user/:key', async (req, res) => {
 /* ── Safe date comparison (no timezone issues) ────────── */
 function isExpired(expiry) {
     const expiryStr = typeof expiry === 'string' ? expiry.slice(0, 10) : new Date(expiry).toISOString().split('T')[0];
-    const today = new Date().toISOString().split('T')[0];
-    return expiryStr < today;
+    const now = new Date();
+    const localToday = now.getFullYear() + '-' +
+        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+        String(now.getDate()).padStart(2, '0');
+    return expiryStr < localToday;
 }
 
 /* ── C++ LOADER VALIDATION ─────────────────────────────── */
