@@ -115,6 +115,7 @@ async function ensureConfigTable() {
         const defaults = [
             ['loader_version', LOADER_VERSION],
             ['api_auth_secret', API_AUTH_SECRET],
+            ['static_auth_token', ''],
                 ['rate_hwidlock', '10'],
             ['rate_user', '20']
         ];
@@ -306,6 +307,16 @@ function verifyKeyFormat(key) {
     return key[6] === KEY_CHARS[parseInt(c, 16) % KEY_CHARS.length];
 }
 
+async function verifyAuth(req, key) {
+    const token = req.headers['x-auth-token'];
+    const ts = parseInt(req.headers['x-auth-ts']) || 0;
+    if (!token) return false;
+    if (ts > 0) return verifyAuthToken(key, token, ts);
+    // Fallback: static auth token from config
+        const staticToken = await getConfigVal('static_auth_token', '');
+    return staticToken && token === staticToken;
+}
+
 function sanitize(str) {
     return String(str || '').replace(/[<>&'"]/g, '').trim();
 }
@@ -324,12 +335,11 @@ app.post('/api/hwidlock/:key', async (req, res) => {
     const rawKey = (req.params.key || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const { hwid } = req.body;
     const token = req.headers['x-auth-token'];
-    const ts = parseInt(req.headers['x-auth-ts']) || 0;
 
-    if (!rawKey || !hwid || !token || !ts)
-        return res.json({ success: false, error: 'Missing key, hwid, token or timestamp.', vvx: 'no' });
+    if (!rawKey || !hwid || !token)
+        return res.json({ success: false, error: 'Missing key, hwid or token.', vvx: 'no' });
 
-    if (!verifyAuthToken(rawKey, token, ts))
+    if (!(await verifyAuth(req, rawKey)))
         return res.json({ success: false, error: 'Invalid auth token.', vvx: 'no' });
 
     let found;
@@ -366,12 +376,11 @@ app.get('/api/user/:key', async (req, res) => {
 
     const rawKey = (req.params.key || req.query.key || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const token = req.headers['x-auth-token'];
-    const ts = parseInt(req.headers['x-auth-ts']) || 0;
 
-    if (!rawKey || !token || !ts)
+    if (!rawKey || !token)
         return res.json({ success: false, error: 'Missing key or auth.', vvx: 'no' });
 
-    if (!verifyAuthToken(rawKey, token, ts))
+    if (!(await verifyAuth(req, rawKey)))
         return res.json({ success: false, error: 'Invalid token.', vvx: 'no' });
 
     let found;
@@ -974,7 +983,8 @@ hr { border:none; border-top:1px solid rgba(255,255,255,0.06); margin:24px 0; }
 
 <div class="card">
 <h2>🔐 Authentication</h2>
-<p>All protected endpoints require two HTTP headers:</p>
+<p>Protected endpoints accept <strong>either</strong> rotating or static auth:</p>
+<p><strong>Option A — Rotating (recommended):</strong></p>
 <table class="table">
 <tr><th>Header</th><th>Description</th></tr>
 <tr><td>X-Auth-Token</td><td>Rotating hash: SHA256(window:key:secret)[0:16], changes every 30 seconds</td></tr>
@@ -983,6 +993,12 @@ hr { border:none; border-top:1px solid rgba(255,255,255,0.06); margin:24px 0; }
 <p><strong>C++ token generator:</strong></p>
 <pre>${cppCode.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
 <p style="margin-top:8px;font-size:0.8rem;color:var(--warn);">⚠ The API secret is embedded in your C++ loader binary. Use obfuscation to protect it.</p>
+<p><strong>Option B — Static (fixed token, no rotation):</strong></p>
+<table class="table">
+<tr><th>Header</th><th>Value</th></tr>
+<tr><td>X-Auth-Token</td><td>The static token configured in the admin panel (API tab)</td></tr>
+</table>
+<p>Omit <code>X-Auth-Ts</code> entirely when using the static token. Configure this in the admin panel under <strong>API → Static Auth Token</strong>.</p>
 </div>
 
 <div class="card">

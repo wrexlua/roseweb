@@ -376,13 +376,27 @@
                 <div class="panel-header"><span class="panel-title">Auth Secret</span></div>
                 <div class="create-row">
                     <div class="form-group" style="flex:1;">
-                        <label class="form-lbl">API Auth Secret (used in C++ token generator)</label>
+                        <label class="form-lbl">API Auth Secret (used in C++ rotating token generator)</label>
                         <input class="form-inp" id="cfgApiAuthSecret" placeholder="rose-api-auth-v2-secret" style="width:100%;max-width:400px;font-family:'Space Mono',monospace;">
                     </div>
                     <button class="btn-create" onclick="saveApiConfig('api_auth_secret')">Save</button>
                 </div>
                 <div style="padding:0 24px 16px;font-size:0.78rem;color:var(--t3);">
                     ⚠ Changing this will break all C++ loaders until you update the secret in your binary.
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Static Auth Token</span></div>
+                <div class="create-row">
+                    <div class="form-group" style="flex:1;">
+                        <label class="form-lbl">Static Token (fixed, no rotation — send as X-Auth-Token, omit X-Auth-Ts)</label>
+                        <input class="form-inp" id="cfgStaticAuthToken" placeholder="Leave empty to disable" style="width:100%;max-width:400px;font-family:'Space Mono',monospace;">
+                    </div>
+                    <button class="btn-create" onclick="saveApiConfig('static_auth_token')">Save</button>
+                </div>
+                <div style="padding:0 24px 16px;font-size:0.78rem;color:var(--t3);">
+                    Loader sends only <code>X-Auth-Token: &lt;token&gt;</code> (no timestamp). Disables 30s window rotation.
                 </div>
             </div>
 
@@ -1045,6 +1059,7 @@ function loadApiConfig() {
         const c = d.config;
         document.getElementById('cfgLoaderVersion').value = c.loader_version || 'v1.0.0';
         document.getElementById('cfgApiAuthSecret').value = c.api_auth_secret || '';
+        document.getElementById('cfgStaticAuthToken').value = c.static_auth_token || '';
         document.getElementById('cfgRateHwidlock').value = c.rate_hwidlock || '10';
         document.getElementById('cfgRateUser').value = c.rate_user || '20';
     }).catch(() => showToast('Failed to load API config.', 'error'));
@@ -1062,6 +1077,8 @@ function saveApiConfig(...keys) {
             const v = document.getElementById('cfgApiAuthSecret').value.trim();
             if (!v) { showToast('Auth secret required.', 'error'); hasError = true; return; }
             payload.api_auth_secret = v;
+        } else if (k === 'static_auth_token') {
+            payload.static_auth_token = document.getElementById('cfgStaticAuthToken').value.trim();
         } else if (k === 'rate_hwidlock') {
             payload.rate_hwidlock = document.getElementById('cfgRateHwidlock').value || '10';
         } else if (k === 'rate_user') {
