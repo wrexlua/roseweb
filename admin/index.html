@@ -9,17 +9,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
-        .multi-select { position:relative; }
-        .multi-select-trigger { display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:40px;padding:6px 10px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--surface-1);width:100%; }
-        .multi-select-trigger .tag { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(200,80,120,0.15);border-radius:4px;font-size:0.78rem;color:var(--accent-light); }
-        .multi-select-trigger .tag .remove { cursor:pointer;opacity:0.6;margin-left:2px; }
-        .multi-select-trigger .tag .remove:hover { opacity:1; }
-        .multi-select-trigger .placeholder { color:var(--t3);font-size:0.85rem; }
-        .multi-select-dropdown { display:none;position:absolute;top:100%;left:0;z-index:9999;background:rgba(14,14,20,0.98);border:1px solid var(--border);border-radius:var(--radius-xs);padding:6px;margin-top:4px;max-height:220px;overflow-y:auto;min-width:220px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.6); }
-        .multi-select.open .multi-select-dropdown { display:block; }
-        .multi-select-dropdown label { display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:4px;cursor:pointer;font-size:0.85rem;color:var(--t2);transition:background var(--fast); }
-        .multi-select-dropdown label:hover { background:rgba(200,80,120,0.08); }
-        .multi-select-dropdown input { accent-color:var(--accent); }
+        .prod-tag { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:rgba(200,80,120,0.15);border-radius:4px;font-size:0.78rem;color:var(--accent-light); }
+        .prod-tag .remove { cursor:pointer;opacity:0.6;margin-left:3px;font-size:0.75rem; }
+        .prod-tag .remove:hover { opacity:1; }
+        #productModal { display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:24px; }
+        #productModal.show { display:flex; }
+        #productModal.show > div { animation:modalPop 0.3s cubic-bezier(0.16,1,0.3,1); }
+        .prod-modal-box { background:rgba(14,14,20,0.98);border:1px solid var(--border);border-radius:var(--radius);padding:28px;width:100%;max-width:400px;backdrop-filter:blur(20px); }
+        .prod-modal-box h3 { font-size:1.1rem;font-weight:700;margin-bottom:16px;color:var(--t1); }
+        .prod-modal-list { display:flex;flex-direction:column;gap:6px;margin-bottom:20px; }
+        .prod-modal-list label { display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:6px;cursor:pointer;font-size:0.88rem;color:var(--t2);transition:background var(--fast); }
+        .prod-modal-list label:hover { background:rgba(200,80,120,0.08); }
+        .prod-modal-list input { accent-color:var(--accent);width:18px;height:18px; }
         .section { display:none; }
         .section.active { display:block; }
         .chart-row { display:flex;gap:20px;flex-wrap:wrap; }
@@ -176,19 +177,11 @@
                         <label class="form-lbl">Expiry (days)</label>
                         <input class="form-inp" id="keyExpiry" type="number" value="30" min="1" style="width:100px;">
                     </div>
-                    <div class="form-group" style="min-width:220px;position:relative;">
+                    <div class="form-group" style="min-width:220px;">
                         <label class="form-lbl">Products</label>
-                        <div class="multi-select" id="productSelector">
-                            <div class="multi-select-trigger" onclick="toggleProductDropdown(event)">
-                                <span class="placeholder" id="productPlaceholder">Select products...</span>
-                                <div id="selectedTags" style="display:inline-flex;flex-wrap:wrap;gap:4px;"></div>
-                            </div>
-                            <div class="multi-select-dropdown" id="productDropdown">
-                                <label><input type="checkbox" class="prod-cb" value="Emulator" onchange="updateSelectedProducts()"> Emulator</label>
-                                <label><input type="checkbox" class="prod-cb" value="Vault" onchange="updateSelectedProducts()"> Vault</label>
-                                <label><input type="checkbox" class="prod-cb" value="Colorbot" onchange="updateSelectedProducts()"> Colorbot</label>
-                                <label><input type="checkbox" class="prod-cb" value="Serial" onchange="updateSelectedProducts()"> Serial</label>
-                            </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+                            <button type="button" class="btn-create" onclick="openProductModal()" style="height:38px;padding:0 16px;font-size:0.85rem;">Select products...</button>
+                            <div id="selectedTags" style="display:inline-flex;flex-wrap:wrap;gap:4px;"></div>
                         </div>
                     </div>
                     <button class="btn-create" onclick="createKey()" style="align-self:flex-end;">Generate Key</button>
@@ -227,6 +220,18 @@
                 <div id="uploadDone" style="display:none;margin-top:12px;">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     <p style="color:var(--ok);font-weight:600;margin-top:8px;">Upload complete!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Selection Modal -->
+        <div id="productModal" onclick="if(event.target===this)closeProductModal()">
+            <div class="prod-modal-box">
+                <h3>Select Products</h3>
+                <div class="prod-modal-list" id="productModalList"></div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button class="btn-xs del" onclick="closeProductModal()" style="height:38px;padding:0 18px;font-size:0.85rem;">Cancel</button>
+                    <button class="btn-xs fulfill" onclick="confirmProducts()" style="height:38px;padding:0 18px;font-size:0.85rem;">Confirm</button>
                 </div>
             </div>
         </div>
@@ -592,52 +597,56 @@ function renderMiniStats(s) {
         '<div class="stat-item-sm"><div class="stat-item-sm-val" style="color:var(--t1);">' + s.total + '</div><div class="stat-item-sm-lbl">Total Keys All Time</div></div>';
 }
 
-/* ── PRODUCT SELECTOR (fixed) ─────────────────────────── */
-function toggleProductDropdown(e) {
-    e.stopPropagation();
-    const ms = document.getElementById('productSelector');
-    const isOpen = ms.classList.contains('open');
-    document.querySelectorAll('.multi-select.open').forEach(el => el.classList.remove('open'));
-    if (!isOpen) ms.classList.add('open');
+/* ── PRODUCT SELECTOR (modal) ──────────────────────────── */
+const PRODUCTS_LIST = ['Emulator', 'Vault', 'Colorbot', 'Serial'];
+let selectedProducts = [];
+
+function openProductModal() {
+    const list = document.getElementById('productModalList');
+    list.innerHTML = PRODUCTS_LIST.map(p =>
+        '<label><input type="checkbox" class="prod-cb" value="' + p + '" ' + (selectedProducts.includes(p) ? 'checked' : '') + '> ' + p + '</label>'
+    ).join('');
+    document.getElementById('productModal').classList.add('show');
 }
 
-document.addEventListener('click', function() {
-    document.querySelectorAll('.multi-select.open').forEach(el => el.classList.remove('open'));
-});
+function closeProductModal() {
+    document.getElementById('productModal').classList.remove('show');
+}
 
-function updateSelectedProducts() {
-    const cbs = document.querySelectorAll('.prod-cb:checked');
+function confirmProducts() {
+    selectedProducts = Array.from(document.querySelectorAll('#productModalList .prod-cb:checked')).map(cb => cb.value);
+    renderProductTags();
+    closeProductModal();
+}
+
+function renderProductTags() {
     const tags = document.getElementById('selectedTags');
-    const ph = document.getElementById('productPlaceholder');
-    if (cbs.length) {
-        ph.style.display = 'none';
-        tags.innerHTML = Array.from(cbs).map(cb =>
-            '<span class="tag">' + cb.value + '<span class="remove" onclick="uncheckProduct(\'' + cb.value + '\')">✕</span></span>'
+    if (selectedProducts.length) {
+        tags.innerHTML = selectedProducts.map(p =>
+            '<span class="prod-tag">' + p + '<span class="remove" onclick="removeProduct(\'' + p + '\')">✕</span></span>'
         ).join('');
     } else {
-        ph.style.display = 'inline';
         tags.innerHTML = '';
     }
 }
 
-function uncheckProduct(val) {
-    document.querySelectorAll('.prod-cb').forEach(cb => { if (cb.value === val) cb.checked = false; });
-    updateSelectedProducts();
+function removeProduct(val) {
+    selectedProducts = selectedProducts.filter(p => p !== val);
+    renderProductTags();
 }
 
 /* ── CREATE KEY ───────────────────────────────────────── */
 function createKey() {
     const username = document.getElementById('keyUsername').value.trim();
     const expiryDays = document.getElementById('keyExpiry').value;
-    const products = Array.from(document.querySelectorAll('.prod-cb:checked')).map(cb => cb.value);
     if (!username) { showToast('Enter a username.', 'error'); return; }
-    if (!products.length) { showToast('Select at least one product.', 'error'); return; }
+    if (!selectedProducts.length) { showToast('Select at least one product.', 'error'); return; }
     if (!expiryDays || expiryDays < 1) { showToast('Enter valid expiry.', 'error'); return; }
 
     fetch('/api/admin/create-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, products, expiryDays: parseInt(expiryDays) })
+        body: JSON.stringify({ username, products: selectedProducts, expiryDays: parseInt(expiryDays) })
     }).then(r => r.json()).then(d => {
         if (d.success) {
             const wrap = document.getElementById('genKeyWrap');
