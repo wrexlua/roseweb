@@ -352,7 +352,7 @@ app.post('/api/hwidlock/:key', async (req, res) => {
     try { const r = await supabase.from('keys').select('*').eq('key', rawKey).single(); found = r.data; } catch { found = null; }
     if (!found) return res.json({ success: false, error: 'Key not found.', vvx: 'no' });
 
-    if (new Date(found.expiry) < new Date())
+    if (isExpired(found.expiry))
         return res.json({ success: false, error: 'Key expired.', vvx: 'no' });
 
     const existingHwid = found.locked_hwid || null;
@@ -366,7 +366,7 @@ app.post('/api/hwidlock/:key', async (req, res) => {
 
     const abbrs = (found.products || []).map(p => productAbbr(p)).filter(Boolean).join(', ');
 
-    const expired = new Date(found.expiry) < new Date();
+    const expired = isExpired(found.expiry);
     res.json({
         success: true, vvx: expired ? 'no' : 'yes',
         name: found.username,
@@ -396,7 +396,7 @@ app.get('/api/user/:key', async (req, res) => {
     try { const r = await supabase.from('keys').select('*').eq('key', rawKey).single(); found = r.data; } catch { found = null; }
     if (!found) return res.json({ success: false, error: 'Not found.', vvx: 'no' });
 
-    const expired = new Date(found.expiry) < new Date();
+    const expired = isExpired(found.expiry);
     const abbrs = (found.products || []).map(p => productAbbr(p)).filter(Boolean).join(', ');
     res.json({
         success: true,
@@ -414,6 +414,13 @@ app.get('/api/user/:key', async (req, res) => {
         locked_hwid: found.locked_hwid || ''
     });
 });
+
+/* ── Safe date comparison (no timezone issues) ────────── */
+function isExpired(expiry) {
+    const expiryStr = typeof expiry === 'string' ? expiry.slice(0, 10) : new Date(expiry).toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
+    return expiryStr < today;
+}
 
 /* ── C++ LOADER VALIDATION ─────────────────────────────── */
 const PRODUCT_ABBR_FIXED = { emulator: 'e', colorbot: 'c', vault: 'v', serial: 's' };
@@ -438,7 +445,7 @@ async function validateKeyResponse(rawKey) {
     try { const r = await supabase.from('keys').select('*').eq('key', clean).single(); found = r.data; } catch { found = null; }
     if (!found) return empty;
 
-    const expired = new Date(found.expiry) < new Date();
+    const expired = isExpired(found.expiry);
     const valid = !expired;
     const abbrs = (found.products || []).map(p => productAbbr(p)).filter(Boolean).join(', ');
 
@@ -479,7 +486,7 @@ app.post('/api/activate', async (req, res) => {
         return res.json({ success: false, error: 'Key not found.' });
     }
 
-    if (new Date(found.expiry) < new Date()) {
+    if (isExpired(found.expiry)) {
         await addLog('ACTIVATE_FAIL', `Expired key: ${cleanKey}`, found.username, ip);
         return res.json({ success: false, error: 'This key has expired.' });
     }
@@ -527,7 +534,7 @@ app.post('/api/check-session', async (req, res) => {
     let found;
     try { const r = await supabase.from('keys').select('*').eq('key', session.key).single(); found = r.data; } catch { found = null; }
 
-    if (!found || new Date(found.expiry) < new Date()) {
+    if (!found || isExpired(found.expiry)) {
         await deleteSessionToken(token);
         if (!found) await addLog('SESSION_KEY_DELETED', `Session invalidated: key ${session.key} not found`, session.username, ip);
         else await addLog('SESSION_KEY_EXPIRED', `Session invalidated: key ${session.key} expired`, session.username, ip);
