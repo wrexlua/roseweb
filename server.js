@@ -21,7 +21,7 @@ const supabase = createClient(
 
 /* ── Configuration ─────────────────────────────────────── */
 const LOADER_VERSION = process.env.LOADER_VERSION || 'v1.0.0';
-const API_AUTH_SECRET = process.env.API_AUTH_SECRET || 'rose-api-auth-v2-secret';
+let API_AUTH_SECRET = process.env.API_AUTH_SECRET || 'rose-api-auth-v2-secret';
 const AUTH_WINDOW = 30;
 
 /* ── Security middleware ─────────────────────────────── */
@@ -115,12 +115,15 @@ async function ensureConfigTable() {
         const defaults = [
             ['loader_version', LOADER_VERSION],
             ['api_auth_secret', API_AUTH_SECRET],
-            ['rate_hwidlock', '10'],
+                ['rate_hwidlock', '10'],
             ['rate_user', '20']
         ];
         for (const [k, v] of defaults) {
             await pgPool.query(`INSERT INTO config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`, [k, v]);
         }
+        // Load stored auth secret into memory
+        const { rows } = await pgPool.query(`SELECT value FROM config WHERE key = 'api_auth_secret'`);
+        if (rows.length && rows[0].value) API_AUTH_SECRET = rows[0].value;
     } catch {}
 }
 ensureConfigTable().catch(() => {});
@@ -882,6 +885,7 @@ app.post('/api/admin/config', async (req, res) => {
     for (const [key, value] of Object.entries(updates)) {
         const safeKey = String(key).replace(/[^a-z_]/g, '');
         if (safeKey) await setConfigVal(safeKey, String(value));
+        if (safeKey === 'api_auth_secret') API_AUTH_SECRET = String(value);
     }
     await addLog('PRODUCT_UPDATE', `API config updated: ${Object.keys(updates).join(', ')}`);
     res.json({ success: true });
