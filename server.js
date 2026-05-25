@@ -108,6 +108,48 @@ async function ensureHWIDColumn() {
 }
 ensureHWIDColumn().catch(() => {});
 
+/* ── Config table ─────────────────────────────────────── */
+async function ensureConfigTable() {
+    try {
+        await pgPool.query(`CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+        const defaults = [
+            ['loader_version', LOADER_VERSION],
+            ['api_auth_secret', API_AUTH_SECRET],
+            ['rate_hwidlock', '10'],
+            ['rate_user', '20']
+        ];
+        for (const [k, v] of defaults) {
+            await pgPool.query(`INSERT INTO config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`, [k, v]);
+        }
+    } catch {}
+}
+ensureConfigTable().catch(() => {});
+
+async function getConfig() {
+    try {
+        const { data } = await supabase.from('config').select('key, value');
+        if (data) return Object.fromEntries(data.map(r => [r.key, r.value]));
+    } catch {}
+    try {
+        const r = await pgPool.query('SELECT key, value FROM config');
+        return Object.fromEntries(r.rows.map(row => [row.key, row.value]));
+    } catch {}
+    return {};
+}
+
+async function getConfigVal(key, def = '') {
+    const cfg = await getConfig();
+    return cfg[key] || def;
+}
+
+async function setConfigVal(key, value) {
+    try {
+        await supabase.from('config').upsert({ key, value }, { onConflict: 'key' });
+    } catch {
+        try { await pgPool.query(`INSERT INTO config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [key, value]); } catch {}
+    }
+}
+
 /* ── Rate limiter ─────────────────────────────────────── */
 const RATE_LIMIT_WINDOW = 60000;
 const rateBuckets = new Map();
@@ -261,7 +303,8 @@ function sanitize(str) {
 
 /* ── LOADER VERSION ─────────────────────────────────────── */
 app.get('/api/loader', async (req, res) => {
-    res.json({ version: LOADER_VERSION });
+    const ver = await getConfigVal('loader_version', LOADER_VERSION);
+    res.json({ version: ver });
 });
 
 /* ── HWID LOCK (C++ loader) ────────────────────────────── */
@@ -787,8 +830,37 @@ async function ensureStorageBucket() {
 }
 ensureStorageBucket();
 
-/* ── API DOCS ───────────────────────────────────────────── */
+/* ── ADMIN: API CONFIG ──────────────────────────────────── */
+app.get('/api/admin/config', async (req, res) => {
+    const cfg = await getConfig();
+    res.json({ success: true, config: cfg });
+});
+
+app.post('/api/admin/config', async (req, res) => {
+    const updates = req.body;
+    if (!updates || typeof updates !== 'object') return res.json({ success: false, error: 'Invalid body.' });
+    for (const [key, value] of Object.entries(updates)) {
+        const safeKey = String(key).replace(/[^a-z_]/g, '');
+        if (safeKey) await setConfigVal(safeKey, String(value));
+    }
+    await addLog('PRODUCT_UPDATE', `API config updated: ${Object.keys(updates).join(', ')}`);
+    res.json({ success: true });
+});
+
+/* ── API DOCS (admin only) ─────────────────────────────── */
 app.get('/api/docs', async (req, res) => {
+    const adminUser = req.query.admin || '';
+    if (adminUser) {
+        const admins = await getAdmins();
+        if (!admins.some(a => a.username === adminUser)) {
+            res.status(401).send('<html><body style="background:#060608;color:#f0f0f5;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;"><div style="text-align:center"><h1 style="color:#f87171;">401</h1><p style="color:rgba(240,240,245,0.55);">Admin access required.</p><a href="/admin/login" style="color:#C85078;">Login</a></div></body></html>');
+            return;
+        }
+    } else {
+        res.status(401).send('<html><body style="background:#060608;color:#f0f0f5;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;"><div style="text-align:center"><h1 style="color:#f87171;">401</h1><p style="color:rgba(240,240,245,0.55);">Admin access required. Append ?admin=your_username</p><a href="/admin/login" style="color:#C85078;">Login</a></div></body></html>');
+        return;
+    }
+    const ver = await getConfigVal('loader_version', LOADER_VERSION);
     const cppCode = `// ─── Auth token generator (C++) ──────────────────────
 #include <string>
 #include <cstdint>
@@ -822,7 +894,7 @@ std::string generate_token(const std::string &key, const std::string &secret) {
 
     const html = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Rose API Docs</title>
+<title>Rose API Docs — ${adminUser}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }

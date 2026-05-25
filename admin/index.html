@@ -123,6 +123,7 @@
             <li><a href="#" onclick="switchTab('admins')" id="nav-admins"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Admins</a></li>
             <li><a href="#" onclick="switchTab('products')" id="nav-products"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Products</a></li>
             <li><a href="#" onclick="switchTab('settings')" id="nav-settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Settings</a></li>
+            <li><a href="#" onclick="switchTab('api')" id="nav-api"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> API</a></li>
             <li><a href="#" onclick="switchTab('docs')" id="nav-docs"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Docs</a></li>
         </ul>
         <div class="sidebar-logout"><a href="#" onclick="handleLogout()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Logout</a></div>
@@ -338,6 +339,67 @@
             </div>
         </div>
 
+        <!-- ══ API SETTINGS ══ -->
+        <div class="section" id="section-api">
+            <h2 class="page-heading">API Settings</h2>
+            <p class="page-sub">Configure loader version, authentication &amp; rate limits.</p>
+
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Loader Version</span></div>
+                <div class="create-row">
+                    <div class="form-group" style="flex:1;">
+                        <label class="form-lbl">Version String</label>
+                        <input class="form-inp" id="cfgLoaderVersion" placeholder="v1.0.0" style="width:200px;font-family:'Space Mono',monospace;">
+                    </div>
+                    <button class="btn-create" onclick="saveApiConfig('loader_version')">Save</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Auth Secret</span></div>
+                <div class="create-row">
+                    <div class="form-group" style="flex:1;">
+                        <label class="form-lbl">API Auth Secret (used in C++ token generator)</label>
+                        <input class="form-inp" id="cfgApiAuthSecret" placeholder="rose-api-auth-v2-secret" style="width:100%;max-width:400px;font-family:'Space Mono',monospace;">
+                    </div>
+                    <button class="btn-create" onclick="saveApiConfig('api_auth_secret')">Save</button>
+                </div>
+                <div style="padding:0 24px 16px;font-size:0.78rem;color:var(--t3);">
+                    ⚠ Changing this will break all C++ loaders until you update the secret in your binary.
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Rate Limits</span></div>
+                <div class="create-row" style="gap:16px;">
+                    <div class="form-group">
+                        <label class="form-lbl">HWID Lock (req/min)</label>
+                        <input class="form-inp" id="cfgRateHwidlock" type="number" min="1" max="100" style="width:100px;font-family:'Space Mono',monospace;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-lbl">User Details (req/min)</label>
+                        <input class="form-inp" id="cfgRateUser" type="number" min="1" max="100" style="width:100px;font-family:'Space Mono',monospace;">
+                    </div>
+                    <button class="btn-create" onclick="saveApiConfig('rate_hwidlock','rate_user')">Save All</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Quick Actions</span></div>
+                <div class="create-row" style="gap:12px;">
+                    <button class="btn-create" onclick="window.open('/api/docs?admin=' + encodeURIComponent(ADMIN_USER), '_blank')" style="display:inline-flex;align-items:center;gap:8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        Open API Docs
+                    </button>
+                    <button class="btn-create" onclick="testApiAuth()" style="background:linear-gradient(135deg,var(--accent-dark),var(--accent));display:inline-flex;align-items:center;gap:8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        Test C++ Auth Token
+                    </button>
+                </div>
+                <div id="authTestResult" style="display:none;padding:0 24px 20px;"></div>
+            </div>
+        </div>
+
         <!-- ══ API DOCS ══ -->
         <div class="section" id="section-docs">
             <h2 class="page-heading">API Documentation</h2>
@@ -389,7 +451,7 @@ std::string gen_token(const std::string &key) {
                 <div class="panel-header"><span class="panel-title">📄 Full Documentation</span></div>
                 <div style="padding:20px 24px;text-align:center;">
                     <p style="font-size:0.88rem;color:var(--t2);margin-bottom:12px;">View the complete interactive documentation with C++ code examples and field references.</p>
-                    <a href="/api/docs" target="_blank" class="btn-create" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;height:auto;text-decoration:none;">
+                    <a href="#" target="_blank" class="btn-create" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;height:auto;text-decoration:none;" onclick="window.open('/api/docs?admin='+encodeURIComponent(ADMIN_USER),'_blank');return false;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                         Open /api/docs
                     </a>
@@ -444,6 +506,7 @@ function switchTab(id) {
     if (id === 'logs') loadLogs();
     if (id === 'admins') loadAdmins();
     if (id === 'products') loadProducts();
+    if (id === 'api') loadApiConfig();
     if (id === 'docs') loadApiEndpoints();
 }
 
@@ -935,6 +998,71 @@ function escapeHtml(str) {
     const d = document.createElement('div');
     d.textContent = String(str || '');
     return d.innerHTML;
+}
+
+/* ── API CONFIG ────────────────────────────────────────── */
+function loadApiConfig() {
+    fetch('/api/admin/config').then(r => r.json()).then(d => {
+        if (!d.success || !d.config) return;
+        const c = d.config;
+        document.getElementById('cfgLoaderVersion').value = c.loader_version || 'v1.0.0';
+        document.getElementById('cfgApiAuthSecret').value = c.api_auth_secret || '';
+        document.getElementById('cfgRateHwidlock').value = c.rate_hwidlock || '10';
+        document.getElementById('cfgRateUser').value = c.rate_user || '20';
+    }).catch(() => showToast('Failed to load API config.', 'error'));
+}
+
+function saveApiConfig(...keys) {
+    const payload = {};
+    let hasError = false;
+    keys.forEach(k => {
+        if (k === 'loader_version') {
+            const v = document.getElementById('cfgLoaderVersion').value.trim();
+            if (!v) { showToast('Loader version required.', 'error'); hasError = true; return; }
+            payload.loader_version = v;
+        } else if (k === 'api_auth_secret') {
+            const v = document.getElementById('cfgApiAuthSecret').value.trim();
+            if (!v) { showToast('Auth secret required.', 'error'); hasError = true; return; }
+            payload.api_auth_secret = v;
+        } else if (k === 'rate_hwidlock') {
+            payload.rate_hwidlock = document.getElementById('cfgRateHwidlock').value || '10';
+        } else if (k === 'rate_user') {
+            payload.rate_user = document.getElementById('cfgRateUser').value || '20';
+        }
+    });
+    if (hasError || !Object.keys(payload).length) return;
+    fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).then(r => r.json()).then(d => {
+        if (d.success) showToast('API config saved!', 'success');
+        else showToast(d.error || 'Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
+}
+
+function testApiAuth() {
+    const key = document.getElementById('cfgLoaderVersion').value.trim();
+    const secret = document.getElementById('cfgApiAuthSecret').value.trim();
+    if (!key || !secret) { showToast('Set a test key and secret first.', 'error'); return; }
+    const ts = Math.floor(Date.now() / 1000);
+    const w = Math.floor(ts / 30);
+    // Compute SHA256 locally via crypto.subtle
+    const enc = new TextEncoder();
+    crypto.subtle.digest('SHA-256', enc.encode(w + ':' + key + ':' + secret)).then(buf => {
+        const hash = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        const token = hash.slice(0, 16);
+        const el = document.getElementById('authTestResult');
+        el.style.display = 'block';
+        el.innerHTML =
+            '<div style="background:rgba(200,80,120,0.06);border:1px solid rgba(200,80,120,0.2);border-radius:8px;padding:14px 18px;margin-top:12px;">' +
+                '<div style="display:flex;flex-direction:column;gap:6px;font-size:0.82rem;">' +
+                    '<div><span style="color:var(--t3);">Token:</span> <span style="font-family:\'Space Mono\',monospace;color:var(--accent-light);word-break:break-all;">' + token + '</span></div>' +
+                    '<div><span style="color:var(--t3);">Timestamp:</span> <span style="font-family:\'Space Mono\',monospace;color:var(--t2);">' + ts + '</span></div>' +
+                    '<div><span style="color:var(--t3);">Headers:</span> <span style="font-family:\'Space Mono\',monospace;color:var(--t2);word-break:break-all;">X-Auth-Token: ' + token + ' | X-Auth-Ts: ' + ts + '</span></div>' +
+                '</div>' +
+            '</div>';
+    }).catch(() => showToast('Crypto not supported.', 'error'));
 }
 
 /* ── API DOCS TABLE ───────────────────────────────────── */
