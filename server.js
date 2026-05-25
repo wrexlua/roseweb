@@ -501,6 +501,7 @@ app.post('/api/activate', async (req, res) => {
             products: found.products,
             expiry: found.expiry,
             key: found.key,
+            locked_hwid: found.locked_hwid || '',
             productLinks: products
         }
     });
@@ -533,7 +534,7 @@ app.post('/api/check-session', async (req, res) => {
 
     const valid = true, ok = true, stat = 1;
     const chk = crypto.createHash('sha256').update(session.key + '::' + valid + '::' + ok + '::' + stat).digest('hex').slice(0, 16);
-    res.json({ valid, ok, stat, chk, data: { username: session.username, expiry: found.expiry } });
+    res.json({ valid, ok, stat, chk, data: { username: session.username, expiry: found.expiry, locked_hwid: found.locked_hwid || '' } });
 });
 
 /* ── ADMIN AUTH ────────────────────────────────────────── */

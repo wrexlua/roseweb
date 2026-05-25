@@ -133,6 +133,9 @@
         <div class="expiry-badge" id="expiryBadge" style="display:none; margin-bottom: 20px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             <span id="expiryText"></span>
+            <span style="margin:0 8px;opacity:0.15;">|</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span id="hwidText"></span>
         </div>
 
         <div class="product-grid" id="productGrid"></div>
@@ -177,7 +180,7 @@
     const sessionToken = localStorage.getItem('roseSessionToken');
     if (!session || !sessionToken) { window.location.href = '/'; return; }
 
-    const { username, products, expiry, key } = session;
+    const { username, products, expiry, key, locked_hwid } = session;
     const myProducts = (products || []).map(p => p.toLowerCase());
 
     const GRADIENTS = {
@@ -197,6 +200,7 @@
     document.getElementById('dashWelcome').innerHTML = 'Welcome back, <strong>' + escapeHtml(username) + '</strong>';
     document.getElementById('expiryBadge').style.display = 'inline-flex';
     document.getElementById('expiryText').textContent = 'Key expires: ' + expiry;
+    document.getElementById('hwidText').textContent = locked_hwid ? 'HWID: ' + locked_hwid : 'HWID: Not locked';
 
     let refreshTimer = null;
     let countdownValue = 30;
@@ -218,6 +222,12 @@
                 localStorage.removeItem('roseSession');
                 localStorage.removeItem('roseSessionToken');
                 window.location.href = '/';
+            } else if (d.data) {
+                // Update stored session with latest data (e.g. HWID)
+                const s = JSON.parse(localStorage.getItem('roseSession') || '{}');
+                if (d.data.locked_hwid !== undefined) s.locked_hwid = d.data.locked_hwid;
+                localStorage.setItem('roseSession', JSON.stringify(s));
+                document.getElementById('hwidText').textContent = d.data.locked_hwid ? 'HWID: ' + d.data.locked_hwid : 'HWID: Not locked';
             }
         } catch(e) {
             localStorage.removeItem('roseSession');
