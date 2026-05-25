@@ -428,7 +428,7 @@ function encryptExpiry(dateStr) {
 }
 
 async function validateKeyResponse(rawKey) {
-    const empty = { name: '', vv: '', vvx: 'no', vvc: 'yes', vvz: 'no', xc: '' };
+    const empty = { name: '', vv: '', vvx: 'no', vvc: 'yes', vvz: 'no', xc: '', hwid_locked: 'no' };
     if (!rawKey) return empty;
 
     const clean = rawKey.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -448,7 +448,8 @@ async function validateKeyResponse(rawKey) {
         vvx: valid ? 'yes' : 'no',
         vvc: expired ? 'yes' : 'no',
         vvz: valid ? 'yes' : 'no',
-        xc: encryptExpiry(found.expiry)
+        xc: encryptExpiry(found.expiry),
+        hwid_locked: found.locked_hwid ? 'yes' : 'no'
     };
 }
 
@@ -1066,7 +1067,8 @@ hr { border:none; border-top:1px solid rgba(255,255,255,0.06); margin:24px 0; }
   "vvx": "yes",
   "vvc": "no",
   "vvz": "yes",
-  "xc": "IRoXGhwf..."
+  "xc": "IRoXGhwf...",
+  "hwid_locked": "no"
 }</pre>
 <table class="table">
 <tr><th>Field</th><th>Description</th></tr>
@@ -1076,7 +1078,9 @@ hr { border:none; border-top:1px solid rgba(255,255,255,0.06); margin:24px 0; }
 <tr><td>vvc</td><td>"yes" if key is expired</td></tr>
 <tr><td>vvz</td><td>"yes" if key is valid (redundant with vvx)</td></tr>
 <tr><td>xc</td><td>XOR + Base64 encrypted expiry date (use decrypt_expiry from C++ docs)</td></tr>
+<tr><td>hwid_locked</td><td>"yes" if HWID is already locked, "no" if not yet locked</td></tr>
 </table>
+<p style="margin-top:8px;font-size:0.82rem;color:var(--warn);">💡 Check <code>hwid_locked</code> in validate response: if <code>"yes"</code>, skip calling <code>/api/hwidlock</code> — HWID was already locked on first login.</p>
 </div>
 
 <div class="card">
@@ -1094,6 +1098,8 @@ hr { border:none; border-top:1px solid rgba(255,255,255,0.06); margin:24px 0; }
   "vvx": "yes",
   "name": "wrexbey",
   "vv": "e, c, v, s",
+  "vvc": "no",
+  "vvz": "yes",
   "xc": "IRoXGhwf...",
   "hwid_locked": "no"
 }</pre>
@@ -1103,9 +1109,12 @@ hr { border:none; border-top:1px solid rgba(255,255,255,0.06); margin:24px 0; }
 <tr><td>vvx</td><td>"yes" if lock succeeded / key valid</td></tr>
 <tr><td>name</td><td>Username</td></tr>
 <tr><td>vv</td><td>Product abbreviations</td></tr>
+<tr><td>vvc</td><td>"yes" if key expired</td></tr>
+<tr><td>vvz</td><td>"yes" if key valid</td></tr>
 <tr><td>xc</td><td>Encrypted expiry</td></tr>
 <tr><td>hwid_locked</td><td>"yes" if HWID was already locked, "no" if just locked now</td></tr>
 </table>
+<p style="margin-top:8px;font-size:0.82rem;color:var(--t3);">ℹ HWID lock is one-time: first call locks it, subsequent calls silently pass through. Discord notification is sent only on the first lock.</p>
 </div>
 
 <div class="card">
