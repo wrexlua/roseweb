@@ -391,7 +391,7 @@
                 <div class="create-row">
                     <div class="form-group" style="flex:1;">
                         <label class="form-lbl">Static Token (fixed, no rotation — send as X-Auth-Token, omit X-Auth-Ts)</label>
-                        <input class="form-inp" id="cfgStaticAuthToken" placeholder="Leave empty to disable" style="width:100%;max-width:400px;font-family:'Space Mono',monospace;">
+                        <input class="form-inp" id="cfgStaticAuthToken" placeholder="Not set" style="width:100%;max-width:400px;font-family:'Space Mono',monospace;">
                     </div>
                     <button class="btn-create" onclick="saveApiConfig('static_auth_token')">Save</button>
                 </div>
@@ -1054,12 +1054,18 @@ function escapeHtml(str) {
 
 /* ── API CONFIG ────────────────────────────────────────── */
 function loadApiConfig() {
-    fetch('/api/admin/config').then(r => r.json()).then(d => {
+    fetch('/api/admin/config', { headers: { 'X-Admin-User': ADMIN_USER } }).then(r => r.json()).then(d => {
         if (!d.success || !d.config) return;
         const c = d.config;
         document.getElementById('cfgLoaderVersion').value = c.loader_version || 'v1.0.0';
         document.getElementById('cfgApiAuthSecret').value = c.api_auth_secret || '';
-        document.getElementById('cfgStaticAuthToken').value = c.static_auth_token || '';
+        const staticInp = document.getElementById('cfgStaticAuthToken');
+        if (c.static_auth_token === '••••••') {
+            staticInp.value = '';
+            staticInp.placeholder = 'Currently set — enter new value to change';
+        } else {
+            staticInp.value = c.static_auth_token || '';
+        }
         document.getElementById('cfgRateHwidlock').value = c.rate_hwidlock || '10';
         document.getElementById('cfgRateUser').value = c.rate_user || '20';
     }).catch(() => showToast('Failed to load API config.', 'error'));
@@ -1088,7 +1094,7 @@ function saveApiConfig(...keys) {
     if (hasError || !Object.keys(payload).length) return;
     fetch('/api/admin/config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Admin-User': ADMIN_USER },
         body: JSON.stringify(payload)
     }).then(r => r.json()).then(d => {
         if (d.success) showToast('API config saved!', 'success');

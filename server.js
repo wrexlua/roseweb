@@ -125,19 +125,20 @@ async function ensureConfigTable() {
         // Load stored auth secret into memory
         const { rows } = await pgPool.query(`SELECT value FROM config WHERE key = 'api_auth_secret'`);
         if (rows.length && rows[0].value) API_AUTH_SECRET = rows[0].value;
-    } catch {}
+    } catch (e) { console.error('ensureConfigTable:', e); }
 }
 ensureConfigTable().catch(() => {});
 
 async function getConfig() {
     try {
-        const { data } = await supabase.from('config').select('key, value');
+        const { data, error } = await supabase.from('config').select('key, value');
+        if (error) throw error;
         if (data) return Object.fromEntries(data.map(r => [r.key, r.value]));
-    } catch {}
+    } catch (e) { console.error('getConfig supabase:', e); }
     try {
         const r = await pgPool.query('SELECT key, value FROM config');
         return Object.fromEntries(r.rows.map(row => [row.key, row.value]));
-    } catch {}
+    } catch (e) { console.error('getConfig pgPool:', e); }
     return {};
 }
 
@@ -148,10 +149,13 @@ async function getConfigVal(key, def = '') {
 
 async function setConfigVal(key, value) {
     try {
-        await supabase.from('config').upsert({ key, value }, { onConflict: 'key' });
-    } catch {
-        try { await pgPool.query(`INSERT INTO config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [key, value]); } catch {}
-    }
+        const { error } = await supabase.from('config').upsert({ key, value }, { onConflict: 'key' });
+        if (error) throw error;
+        return;
+    } catch (e) { console.error('setConfigVal supabase:', e); }
+    try {
+        await pgPool.query(`INSERT INTO config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [key, value]);
+    } catch (e) { console.error('setConfigVal pgPool:', e); }
 }
 
 /* ── Rate limiter ─────────────────────────────────────── */
@@ -890,11 +894,23 @@ ensureStorageBucket();
 
 /* ── ADMIN: API CONFIG ──────────────────────────────────── */
 app.get('/api/admin/config', async (req, res) => {
+    const username = req.query.admin || '';
+    if (username) {
+        const admins = await getAdmins();
+        if (!admins.some(a => a.username === username)) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+    } else {
+        const hdr = req.headers['x-admin-user'] || '';
+        if (!hdr) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+    }
     const cfg = await getConfig();
+    // Never expose static_auth_token
+    if (cfg.static_auth_token) cfg.static_auth_token = '••••••';
     res.json({ success: true, config: cfg });
 });
 
 app.post('/api/admin/config', async (req, res) => {
+    const hdr = req.headers['x-admin-user'] || '';
+    if (!hdr) return res.status(401).json({ success: false, error: 'Unauthorized.' });
     const updates = req.body;
     if (!updates || typeof updates !== 'object') return res.json({ success: false, error: 'Invalid body.' });
     for (const [key, value] of Object.entries(updates)) {
