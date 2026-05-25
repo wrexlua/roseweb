@@ -1115,6 +1115,29 @@ hr { border:none; border-top:1px solid rgba(255,255,255,0.06); margin:24px 0; }
 <tr><td>hwid_locked</td><td>"yes" if HWID was already locked, "no" if just locked now</td></tr>
 </table>
 <p style="margin-top:8px;font-size:0.82rem;color:var(--t3);">ℹ HWID lock is one-time: first call locks it, subsequent calls silently pass through. Discord notification is sent only on the first lock.</p>
+<p><strong>Error — HWID Mismatch (another PC):</strong></p>
+<pre>{
+  "success": false,
+  "error": "HWID mismatch.",
+  "vvx": "no",
+  "locked": true
+}</pre>
+<table class="table">
+<tr><th>Field</th><th>Description</th></tr>
+<tr><td>locked</td><td><code>true</code> = key is locked to a different HWID</td></tr>
+</table>
+<p><strong>C++ — Detect HWID mismatch:</strong></p>
+<pre style="font-size:0.78rem;">if (res.success) {
+    // HWID lock OK — use data
+} else {
+    if (res.body.find("\"locked\":true") != std::string::npos) {
+        // Key is locked to ANOTHER PC — show "This key is locked to another computer"
+    } else if (res.body.find("expired") != std::string::npos) {
+        // Key expired
+    } else {
+        // Other error: invalid token, key not found, etc.
+    }
+}</pre>
 </div>
 
 <div class="card">
