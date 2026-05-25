@@ -169,16 +169,22 @@ function checkRateLimit(ip, maxReqs = 30) {
 
 /* ── Rotating auth token ───────────────────────────────── */
 function generateAuthToken(key, ts) {
-    const window = Math.floor(ts / AUTH_WINDOW);
+    // Accept ts in seconds or milliseconds
+    const s = ts < 1e12 ? ts : Math.floor(ts / 1000);
+    const window = Math.floor(s / AUTH_WINDOW);
     return crypto.createHash('sha256').update(window + ':' + key + ':' + API_AUTH_SECRET).digest('hex').slice(0, 16);
 }
 
 function verifyAuthToken(key, token, ts) {
-    if (Math.abs(Date.now() - ts) > AUTH_WINDOW * 3 * 1000) return false;
+    const now = Date.now();
+    // Accept ts in seconds (Unix) or milliseconds
+    if (ts < 1e12) ts *= 1000; // now always ms
+    if (Math.abs(now - ts) > AUTH_WINDOW * 3 * 1000) return false;
+    const windowMs = AUTH_WINDOW * 1000;
     const windows = [
-        Math.floor(ts / AUTH_WINDOW),
-        Math.floor(ts / AUTH_WINDOW) - 1,
-        Math.floor(ts / AUTH_WINDOW) + 1
+        Math.floor(ts / windowMs),
+        Math.floor(ts / windowMs) - 1,
+        Math.floor(ts / windowMs) + 1
     ];
     return windows.some(w => {
         const expected = crypto.createHash('sha256').update(w + ':' + key + ':' + API_AUTH_SECRET).digest('hex').slice(0, 16);
