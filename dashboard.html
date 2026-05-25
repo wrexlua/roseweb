@@ -145,7 +145,7 @@
                     <div class="loader-bar-meta" id="loaderMeta">Loading...</div>
                 </div>
             </div>
-            <a class="loader-bar-btn" id="loaderDownloadBtn" href="#" target="_blank" onclick="if(!this.href||this.href==='#'){event.preventDefault();showToast('No loader uploaded yet.','info')}">
+            <a class="loader-bar-btn" id="loaderDownloadBtn" href="#" target="_blank">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Download
             </a>
@@ -291,14 +291,21 @@
 
         // Fetch loader info
         fetch('/api/config/loader').then(r => r.json()).then(d => {
+            const bar = document.getElementById('loaderBar');
+            const btn = document.getElementById('loaderDownloadBtn');
+            const meta = document.getElementById('loaderMeta');
             if (d.success && d.url) {
-                document.getElementById('loaderDownloadBtn').href = d.url;
-                document.getElementById('loaderMeta').textContent = (d.filename || 'Loader') + ' · v' + (d.version || '?') + (d.updated ? ' · ' + d.updated : '');
-                document.getElementById('loaderBar').style.display = 'flex';
+                btn.href = d.url;
+                meta.textContent = (d.filename || 'Loader') + ' · v' + (d.version || '?') + (d.updated ? ' · ' + d.updated : '');
             } else {
-                document.getElementById('loaderBar').style.display = 'none';
+                btn.removeAttribute('href');
+                btn.onclick = function(e){ e.preventDefault(); showToast('No loader uploaded yet.','info'); };
+                meta.textContent = 'No loader file available — contact admin.';
             }
-        }).catch(() => {});
+            bar.style.display = 'flex';
+        }).catch(() => {
+            document.getElementById('loaderBar').style.display = 'flex';
+        });
     }
 
     fetchStatuses();
