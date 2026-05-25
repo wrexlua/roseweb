@@ -364,10 +364,13 @@ app.post('/api/hwidlock/:key', async (req, res) => {
 
     const abbrs = (found.products || []).map(p => productAbbr(p)).filter(Boolean).join(', ');
 
+    const expired = new Date(found.expiry) < new Date();
     res.json({
-        success: true, vvx: 'yes',
+        success: true, vvx: expired ? 'no' : 'yes',
         name: found.username,
         vv: abbrs,
+        vvc: expired ? 'yes' : 'no',
+        vvz: expired ? 'no' : 'yes',
         xc: encryptExpiry(found.expiry),
         hwid_locked: existingHwid ? 'yes' : 'no'
     });
@@ -392,17 +395,21 @@ app.get('/api/user/:key', async (req, res) => {
     if (!found) return res.json({ success: false, error: 'Not found.', vvx: 'no' });
 
     const expired = new Date(found.expiry) < new Date();
+    const abbrs = (found.products || []).map(p => productAbbr(p)).filter(Boolean).join(', ');
     res.json({
         success: true,
+        name: found.username,
         username: found.username,
+        vv: abbrs,
+        vvx: expired ? 'no' : 'yes',
+        vvc: expired ? 'yes' : 'no',
+        vvz: expired ? 'no' : 'yes',
+        xc: encryptExpiry(found.expiry),
         products: found.products || [],
         expiry: found.expiry,
         expired: expired ? 'yes' : 'no',
         locked_ip: found.locked_ip || '',
-        locked_hwid: found.locked_hwid || '',
-        vv: (found.products || []).map(p => productAbbr(p)).filter(Boolean).join(', '),
-        vvx: expired ? 'no' : 'yes',
-        xc: encryptExpiry(found.expiry)
+        locked_hwid: found.locked_hwid || ''
     });
 });
 
