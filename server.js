@@ -428,7 +428,7 @@ function encryptExpiry(dateStr) {
 }
 
 async function validateKeyResponse(rawKey) {
-    const empty = { name: '', vv: '', vvx: 'no', vvc: 'yes', vvz: 'no', xc: '', hwid_locked: 'no' };
+    const empty = { name: '', vv: '', vvx: 'no', vvc: 'yes', vvz: 'no', xc: '', hwid_locked: 'no', locked_hwid: '' };
     if (!rawKey) return empty;
 
     const clean = rawKey.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -449,7 +449,8 @@ async function validateKeyResponse(rawKey) {
         vvc: expired ? 'yes' : 'no',
         vvz: valid ? 'yes' : 'no',
         xc: encryptExpiry(found.expiry),
-        hwid_locked: found.locked_hwid ? 'yes' : 'no'
+        hwid_locked: found.locked_hwid ? 'yes' : 'no',
+        locked_hwid: found.locked_hwid || ''
     };
 }
 
