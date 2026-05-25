@@ -214,7 +214,8 @@ function sanitize(str) {
 }
 
 /* ── C++ LOADER VALIDATION ─────────────────────────────── */
-const PRODUCT_ABBR = { emulator: 'e', colorbot: 'c', vault: 'v', serial: 's' };
+const PRODUCT_ABBR_FIXED = { emulator: 'e', colorbot: 'c', vault: 'v', serial: 's' };
+function productAbbr(name) { return PRODUCT_ABBR_FIXED[name.toLowerCase()] || name[0] || '?'; }
 
 function encryptExpiry(dateStr) {
     const key = process.env.EXPIRY_SECRET || 'rose-xor-key-2024';
@@ -237,7 +238,7 @@ async function validateKeyResponse(rawKey) {
 
     const expired = new Date(found.expiry) < new Date();
     const valid = !expired;
-    const abbrs = (found.products || []).map(p => PRODUCT_ABBR[p.toLowerCase()] || '').filter(Boolean).join(', ');
+    const abbrs = (found.products || []).map(p => productAbbr(p)).filter(Boolean).join(', ');
 
     return {
         name: found.username || '',
