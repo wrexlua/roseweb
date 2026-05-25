@@ -762,6 +762,46 @@ app.get('/api/download/:productId', async (req, res) => {
     res.redirect(product.downloadUrl);
 });
 
+/* ── LOADER UPLOAD & CONFIG ────────────────────────────── */
+app.post('/api/admin/upload-loader', upload.single('file'), async (req, res) => {
+    if (!req.file) return res.json({ success: false, error: 'No file provided.' });
+
+    const safeName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filename = 'loader/' + safeName;
+    const bucket = 'product-files';
+
+    const { data: buckets } = await supabase.storage.listBuckets();
+    if (!buckets?.find(b => b.name === bucket)) {
+        await supabase.storage.createBucket(bucket, { public: true });
+    }
+
+    await supabase.storage.from(bucket).upload(filename, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true
+    });
+
+    const { data: pub } = supabase.storage.from(bucket).getPublicUrl(filename);
+    const downloadUrl = pub?.publicUrl || '';
+
+    await setConfigVal('loader_download_url', downloadUrl);
+    await setConfigVal('loader_filename', req.file.originalname);
+    await setConfigVal('loader_updated', new Date().toLocaleDateString('tr-TR'));
+
+    await addLog('PRODUCT_UPDATE', `Loader uploaded: ${req.file.originalname}`);
+    res.json({ success: true, downloadUrl, filename: req.file.originalname });
+});
+
+app.get('/api/config/loader', async (req, res) => {
+    const cfg = await getConfig();
+    res.json({
+        success: true,
+        url: cfg.loader_download_url || '',
+        filename: cfg.loader_filename || '',
+        updated: cfg.loader_updated || '',
+        version: cfg.loader_version || LOADER_VERSION
+    });
+});
+
 /* ── PRODUCTS (products table) ────────────────────────── */
 app.get('/api/config/products', async (req, res) => {
     const products = await getProducts();

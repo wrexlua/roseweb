@@ -308,6 +308,18 @@
             </div>
 
             <div class="panel">
+                <div class="panel-header"><span class="panel-title">Upload Loader</span></div>
+                <div class="create-row">
+                    <input type="file" id="loaderFileInput" style="display:none" onchange="uploadLoader()">
+                    <button class="btn-create" onclick="document.getElementById('loaderFileInput').click()" style="display:inline-flex;align-items:center;gap:8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Choose Loader File
+                    </button>
+                    <span id="loaderFileStatus" style="font-size:0.85rem;color:var(--t3);">No file selected</span>
+                </div>
+            </div>
+
+            <div class="panel">
                 <div class="panel-header"><span class="panel-title">Product Settings</span></div>
                 <div style="overflow-x:auto;">
                     <table class="data-table">
@@ -871,6 +883,32 @@ function uploadProductFile(id) {
         }
     }).catch(() => {
         modal.classList.remove('show');
+        showToast('Upload error.', 'error');
+    });
+}
+
+function uploadLoader() {
+    const input = document.getElementById('loaderFileInput');
+    const file = input.files[0];
+    if (!file) return;
+    input.value = '';
+    document.getElementById('loaderFileStatus').textContent = 'Uploading ' + file.name + '...';
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fetch('/api/admin/upload-loader', {
+        method: 'POST',
+        body: fd
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            document.getElementById('loaderFileStatus').textContent = '✓ ' + d.filename + ' uploaded!';
+            showToast('Loader uploaded!', 'success');
+        } else {
+            document.getElementById('loaderFileStatus').textContent = '✗ Upload failed.';
+            showToast(d.error || 'Upload failed.', 'error');
+        }
+    }).catch(() => {
+        document.getElementById('loaderFileStatus').textContent = '✗ Upload error.';
         showToast('Upload error.', 'error');
     });
 }
