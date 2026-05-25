@@ -103,7 +103,7 @@
         @keyframes rowIn { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
     </style>
 </head>
-<body class="scrollable">
+<body>
 
 <canvas id="meshCanvas"></canvas>
 <div class="noise"></div>
@@ -116,9 +116,6 @@
             </div>
             <span class="sidebar-brand-text">Rose Admin</span>
         </div>
-        <button class="mobile-nav-toggle" onclick="toggleMobileNav()" aria-label="Toggle navigation" style="display:none;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        </button>
         <ul class="sidebar-nav">
             <li><a href="#" class="active" onclick="switchTab('dashboard')" id="nav-dashboard"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Dashboard</a></li>
             <li><a href="#" onclick="switchTab('create')" id="nav-create"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg> Create Key</a></li>
@@ -503,18 +500,6 @@ std::string gen_token(const std::string &key) {
 const ADMIN_USER = localStorage.getItem('roseAdminUser') || 'admin';
 let editingKey = null;
 let adminSessionTimer = null;
-
-function toggleMobileNav() {
-    document.querySelector('.admin-sidebar').classList.toggle('nav-open');
-}
-// Close mobile nav on link click
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.sidebar-nav a').forEach(function(el) {
-        el.addEventListener('click', function() {
-            document.querySelector('.admin-sidebar').classList.remove('nav-open');
-        });
-    });
-});
 
 (function() {
     const token = localStorage.getItem('roseAdminToken');
