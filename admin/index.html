@@ -123,6 +123,7 @@
             <li><a href="#" onclick="switchTab('admins')" id="nav-admins"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Admins</a></li>
             <li><a href="#" onclick="switchTab('products')" id="nav-products"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Products</a></li>
             <li><a href="#" onclick="switchTab('settings')" id="nav-settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Settings</a></li>
+            <li><a href="#" onclick="switchTab('docs')" id="nav-docs"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Docs</a></li>
         </ul>
         <div class="sidebar-logout"><a href="#" onclick="handleLogout()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Logout</a></div>
     </aside>
@@ -209,8 +210,8 @@
                 <div class="panel-header"><span class="panel-title">Keys</span></div>
                 <div style="overflow-x:auto;">
                     <table class="data-table keys-table">
-                        <thead><tr><th>Key</th><th>Username</th><th>Products</th><th>Expiry</th><th>Status</th><th>IP Lock</th><th>Created</th><th>Actions</th></tr></thead>
-                        <tbody id="keysTableBody"><tr><td colspan="8" class="empty-row">Loading...</td></tr></tbody>
+                        <thead><tr><th>Key</th><th>Username</th><th>Products</th><th>Expiry</th><th>Status</th><th>IP Lock</th><th>HWID Lock</th><th>Created</th><th>Actions</th></tr></thead>
+                        <tbody id="keysTableBody"><tr><td colspan="9" class="empty-row">Loading...</td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -337,6 +338,65 @@
             </div>
         </div>
 
+        <!-- ══ API DOCS ══ -->
+        <div class="section" id="section-docs">
+            <h2 class="page-heading">API Documentation</h2>
+            <p class="page-sub">Complete API reference for C++ loader integration &amp; auth.</p>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">🔐 Authentication</span></div>
+                <div style="padding:20px 24px;font-size:0.88rem;color:var(--t2);line-height:1.7;">
+                    <p>All protected endpoints require two HTTP headers:</p>
+                    <table class="data-table" style="margin:12px 0;">
+                        <thead><tr><th>Header</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td style="font-family:'Space Mono',monospace;">X-Auth-Token</td><td>Rotating hash: SHA256(window:key:secret)[0:16], changes every 30s</td></tr>
+                            <tr><td style="font-family:'Space Mono',monospace;">X-Auth-Ts</td><td>UNIX timestamp used to generate the token</td></tr>
+                        </tbody>
+                    </table>
+                    <p style="margin-bottom:8px;"><strong style="color:var(--accent-light);">C++ Token Generator</strong></p>
+                    <pre style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:0.78rem;line-height:1.5;overflow-x:auto;color:var(--t2);">&lt;string&gt;
+#include &lt;openssl/sha.h&gt;
+#include &lt;ctime&gt;
+
+std::string sha256_hex(const std::string &in) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256((unsigned char*)in.data(), in.size(), hash);
+    std::ostringstream out;
+    for (int i = 0; i &lt; SHA256_DIGEST_LENGTH; i++)
+        out &lt;&lt; std::hex &lt;&lt; std::setw(2) &lt;&lt; std::setfill('0') &lt;&lt; (int)hash[i];
+    return out.str();
+}
+
+std::string gen_token(const std::string &key) {
+    long long w = time(nullptr) / 30;
+    return sha256_hex(std::to_string(w) + ":" + key + ":rose-api-auth-v2-secret").substr(0, 16);
+}</pre>
+                    <p style="margin-top:8px;font-size:0.78rem;color:var(--warn);">⚠ The API secret (<code style="font-size:0.75rem;">rose-api-auth-v2-secret</code>) is embedded in your C++ loader. Use string obfuscation.</p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">📡 Endpoints</span></div>
+                <div style="padding:16px 24px;">
+                    <table class="data-table">
+                        <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+                        <tbody id="apiEndpointsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">📄 Full Documentation</span></div>
+                <div style="padding:20px 24px;text-align:center;">
+                    <p style="font-size:0.88rem;color:var(--t2);margin-bottom:12px;">View the complete interactive documentation with C++ code examples and field references.</p>
+                    <a href="/api/docs" target="_blank" class="btn-create" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;height:auto;text-decoration:none;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        Open /api/docs
+                    </a>
+                </div>
+            </div>
+        </div>
+
     </main>
 </div>
 
@@ -384,6 +444,7 @@ function switchTab(id) {
     if (id === 'logs') loadLogs();
     if (id === 'admins') loadAdmins();
     if (id === 'products') loadProducts();
+    if (id === 'docs') loadApiEndpoints();
 }
 
 /* ── DASHBOARD ────────────────────────────────────────── */
@@ -537,7 +598,7 @@ function loadKeysTable() {
     const tbody = document.getElementById('keysTableBody');
     fetch('/api/admin/keys').then(r => r.json()).then(d => {
         if (!d.success || !d.keys.length) {
-            tbody.innerHTML = '<tr><td colspan="8" class="empty-row"><div class="empty-row-icon">🔑</div><p>No keys yet.</p></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="empty-row"><div class="empty-row-icon">🔑</div><p>No keys yet.</p></td></tr>';
             return;
         }
         const now = new Date();
@@ -547,15 +608,18 @@ function loadKeysTable() {
             const st = expired ? 'Expired' : 'Active';
             const created = new Date(k.created_at).toLocaleDateString('tr-TR');
             const ipLock = k.locked_ip || '-';
+            const hwidLock = k.locked_hwid || '-';
             return '<tr><td class="key-cell">' + escapeHtml(k.key) + '</td><td>' + escapeHtml(k.username) + '</td>' +
                 '<td>' + (k.products || []).map(p => '<span class="product-chip">' + escapeHtml(p) + '</span>').join('') + '</td>' +
                 '<td style="font-family:\'Space Mono\',monospace;font-size:0.8rem;">' + k.expiry + '</td>' +
                 '<td><span class="status-pip ' + sc + '"><span class="pip-dot"></span>' + st + '</span></td>' +
                 '<td style="font-size:0.72rem;font-family:\'Space Mono\',monospace;color:var(--t3);max-width:100px;overflow:hidden;text-overflow:ellipsis;" title="' + escapeHtml(ipLock) + '">' + escapeHtml(ipLock) + '</td>' +
+                '<td style="font-size:0.72rem;font-family:\'Space Mono\',monospace;color:var(--t3);max-width:100px;overflow:hidden;text-overflow:ellipsis;" title="' + escapeHtml(hwidLock) + '">' + escapeHtml(hwidLock) + '</td>' +
                 '<td style="font-size:0.78rem;">' + created + '</td>' +
                 '<td><div class="action-row">' +
                     '<button class="btn-xs fulfill" onclick="openEditModal(\'' + k.key + '\')">Edit</button>' +
-                    (k.locked_ip ? '<button class="btn-xs" style="border-color:rgba(250,204,21,0.3);color:var(--warn);background:rgba(250,204,21,0.06);" onclick="resetKeyIP(\'' + k.key + '\')">Reset IP</button>' : '') +
+                    (k.locked_ip ? '<button class="btn-xs" style="border-color:rgba(250,204,21,0.3);color:var(--warn);background:rgba(250,204,21,0.06);" onclick="resetKeyIP(\'' + k.key + '\')">IP</button>' : '') +
+                    (k.locked_hwid ? '<button class="btn-xs" style="border-color:rgba(250,204,21,0.3);color:var(--warn);background:rgba(250,204,21,0.06);" onclick="resetKeyHWID(\'' + k.key + '\')">HWID</button>' : '') +
                     '<button class="btn-xs del" onclick="deleteKey(\'' + k.key + '\')">Delete</button>' +
                 '</div></td></tr>';
         }).join('');
@@ -604,6 +668,14 @@ function resetKeyIP(key) {
     if (!confirm('Reset IP lock for key ' + key + '?')) return;
     fetch('/api/admin/keys/' + key + '/reset-ip', { method: 'POST' }).then(r => r.json()).then(d => {
         if (d.success) { showToast('IP lock reset for ' + key, 'success'); loadKeysTable(); }
+        else showToast(d.error || 'Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
+}
+
+function resetKeyHWID(key) {
+    if (!confirm('Reset HWID lock for key ' + key + '?')) return;
+    fetch('/api/admin/keys/' + key + '/reset-hwid', { method: 'POST' }).then(r => r.json()).then(d => {
+        if (d.success) { showToast('HWID lock reset for ' + key, 'success'); loadKeysTable(); }
         else showToast(d.error || 'Failed.', 'error');
     }).catch(() => showToast('Connection error.', 'error'));
 }
@@ -863,6 +935,48 @@ function escapeHtml(str) {
     const d = document.createElement('div');
     d.textContent = String(str || '');
     return d.innerHTML;
+}
+
+/* ── API DOCS TABLE ───────────────────────────────────── */
+function loadApiEndpoints() {
+    const tbody = document.getElementById('apiEndpointsBody');
+    const eps = [
+        ['GET', '/api/loader', '—', 'Loader version'],
+        ['GET', '/api/validate/:key', '—', 'Validate key, get user info & products'],
+        ['POST', '/api/hwidlock/:key', 'X-Auth-Token', 'Lock key to HWID'],
+        ['GET', '/api/user/:key', 'X-Auth-Token', 'Full user details'],
+        ['POST', '/api/activate', '—', 'Activate key & create session'],
+        ['POST', '/api/check-session', '—', 'Validate session (multi-factor)'],
+        ['POST', '/api/admin/login', '—', 'Admin sign-in'],
+        ['POST', '/api/admin/verify', '—', 'Verify admin session'],
+        ['GET', '/api/admin/stats', '—', 'Admin dashboard stats'],
+        ['GET', '/api/admin/keys', '—', 'List all keys'],
+        ['POST', '/api/admin/create-key', '—', 'Generate new key'],
+        ['PUT', '/api/admin/keys/:key', '—', 'Edit key details'],
+        ['DELETE', '/api/admin/keys/:key', '—', 'Delete a key'],
+        ['POST', '/api/admin/keys/:key/reset-ip', '—', 'Reset IP lock'],
+        ['POST', '/api/admin/keys/:key/reset-hwid', '—', 'Reset HWID lock'],
+        ['GET', '/api/admin/logs', '—', 'View activity logs'],
+        ['POST', '/api/admin/clear-logs', '—', 'Clear all logs'],
+        ['GET', '/api/admin/admins', '—', 'List admin accounts'],
+        ['POST', '/api/admin/admins', '—', 'Create admin account'],
+        ['DELETE', '/api/admin/admins/:username', '—', 'Delete admin account'],
+        ['PUT', '/api/admin/admins/:username/password', '—', 'Change password'],
+        ['GET', '/api/config/products', '—', 'Product list & statuses'],
+        ['PUT', '/api/admin/products/:id', '—', 'Update product'],
+        ['POST', '/api/admin/products/:id/upload', '—', 'Upload product file'],
+        ['POST', '/api/admin/products', '—', 'Create product'],
+        ['DELETE', '/api/admin/products/:id', '—', 'Delete product'],
+        ['GET', '/api/docs', '—', 'API documentation page']
+    ];
+    tbody.innerHTML = eps.map(([method, path, auth, desc]) =>
+        '<tr>' +
+            '<td><span class="tag ' + method.toLowerCase() + '" style="font-size:0.65rem;">' + method + '</span></td>' +
+            '<td style="font-family:\'Space Mono\',monospace;font-size:0.78rem;color:var(--accent-light);">' + path + '</td>' +
+            '<td style="font-size:0.75rem;color:var(--t3);">' + auth + '</td>' +
+            '<td style="font-size:0.82rem;">' + desc + '</td>' +
+        '</tr>'
+    ).join('');
 }
 </script>
 </body>

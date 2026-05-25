@@ -19,6 +19,11 @@ const supabase = createClient(
     { auth: { persistSession: false } }
 );
 
+/* ── Configuration ─────────────────────────────────────── */
+const LOADER_VERSION = process.env.LOADER_VERSION || 'v1.0.0';
+const API_AUTH_SECRET = process.env.API_AUTH_SECRET || 'rose-api-auth-v2-secret';
+const AUTH_WINDOW = 30;
+
 /* ── Security middleware ─────────────────────────────── */
 app.use(express.json({ limit: '10kb' }));
 
@@ -93,6 +98,47 @@ async function deleteSessionToken(token) {
 async function cleanupSessions() {
     const cutoff = new Date(Date.now() - SESSION_TTL).toISOString();
     try { await supabase.from('sessions').delete().lt('created_at', cutoff); } catch {}
+}
+
+/* ── HWID column migration ──────────────────────────── */
+async function ensureHWIDColumn() {
+    try {
+        await pgPool.query(`ALTER TABLE keys ADD COLUMN IF NOT EXISTS locked_hwid TEXT DEFAULT NULL`);
+    } catch {}
+}
+ensureHWIDColumn().catch(() => {});
+
+/* ── Rate limiter ─────────────────────────────────────── */
+const RATE_LIMIT_WINDOW = 60000;
+const rateBuckets = new Map();
+setInterval(() => rateBuckets.clear(), RATE_LIMIT_WINDOW);
+
+function checkRateLimit(ip, maxReqs = 30) {
+    const now = Date.now();
+    const bucket = rateBuckets.get(ip) || { count: 0, reset: now + RATE_LIMIT_WINDOW };
+    if (now > bucket.reset) { bucket.count = 0; bucket.reset = now + RATE_LIMIT_WINDOW; }
+    bucket.count++;
+    rateBuckets.set(ip, bucket);
+    return bucket.count <= maxReqs;
+}
+
+/* ── Rotating auth token ───────────────────────────────── */
+function generateAuthToken(key, ts) {
+    const window = Math.floor(ts / AUTH_WINDOW);
+    return crypto.createHash('sha256').update(window + ':' + key + ':' + API_AUTH_SECRET).digest('hex').slice(0, 16);
+}
+
+function verifyAuthToken(key, token, ts) {
+    if (Math.abs(Date.now() - ts) > AUTH_WINDOW * 3 * 1000) return false;
+    const windows = [
+        Math.floor(ts / AUTH_WINDOW),
+        Math.floor(ts / AUTH_WINDOW) - 1,
+        Math.floor(ts / AUTH_WINDOW) + 1
+    ];
+    return windows.some(w => {
+        const expected = crypto.createHash('sha256').update(w + ':' + key + ':' + API_AUTH_SECRET).digest('hex').slice(0, 16);
+        return expected === token;
+    });
 }
 
 function getClientIP(req) {
@@ -212,6 +258,88 @@ function verifyKeyFormat(key) {
 function sanitize(str) {
     return String(str || '').replace(/[<>&'"]/g, '').trim();
 }
+
+/* ── LOADER VERSION ─────────────────────────────────────── */
+app.get('/api/loader', async (req, res) => {
+    res.json({ version: LOADER_VERSION });
+});
+
+/* ── HWID LOCK (C++ loader) ────────────────────────────── */
+app.post('/api/hwidlock/:key', async (req, res) => {
+    const ip = getClientIP(req);
+    if (!checkRateLimit(ip, 10)) return res.status(429).json({ success: false, error: 'Rate limit exceeded.' });
+
+    const rawKey = (req.params.key || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const { hwid } = req.body;
+    const token = req.headers['x-auth-token'];
+    const ts = parseInt(req.headers['x-auth-ts']) || 0;
+
+    if (!rawKey || !hwid || !token || !ts)
+        return res.json({ success: false, error: 'Missing key, hwid, token or timestamp.', vvx: 'no' });
+
+    if (!verifyAuthToken(rawKey, token, ts))
+        return res.json({ success: false, error: 'Invalid auth token.', vvx: 'no' });
+
+    let found;
+    try { const r = await supabase.from('keys').select('*').eq('key', rawKey).single(); found = r.data; } catch { found = null; }
+    if (!found) return res.json({ success: false, error: 'Key not found.', vvx: 'no' });
+
+    if (new Date(found.expiry) < new Date())
+        return res.json({ success: false, error: 'Key expired.', vvx: 'no' });
+
+    const existingHwid = found.locked_hwid || null;
+    if (existingHwid && existingHwid !== hwid)
+        return res.json({ success: false, error: 'HWID mismatch.', vvx: 'no', locked: true });
+
+    if (!existingHwid) {
+        await supabase.from('keys').update({ locked_hwid: hwid }).eq('key', rawKey);
+        await addLog('IP_LOCK', `HWID locked for key ${rawKey}: ${hwid}`, found.username, ip);
+    }
+
+    const abbrs = (found.products || []).map(p => productAbbr(p)).filter(Boolean).join(', ');
+
+    res.json({
+        success: true, vvx: 'yes',
+        name: found.username,
+        vv: abbrs,
+        xc: encryptExpiry(found.expiry),
+        hwid_locked: existingHwid ? 'yes' : 'no'
+    });
+});
+
+/* ── USER DETAILS (C++ loader) ─────────────────────────── */
+app.get('/api/user/:key', async (req, res) => {
+    const ip = getClientIP(req);
+    if (!checkRateLimit(ip, 20)) return res.status(429).json({ success: false, error: 'Rate limit.' });
+
+    const rawKey = (req.params.key || req.query.key || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const token = req.headers['x-auth-token'];
+    const ts = parseInt(req.headers['x-auth-ts']) || 0;
+
+    if (!rawKey || !token || !ts)
+        return res.json({ success: false, error: 'Missing key or auth.', vvx: 'no' });
+
+    if (!verifyAuthToken(rawKey, token, ts))
+        return res.json({ success: false, error: 'Invalid token.', vvx: 'no' });
+
+    let found;
+    try { const r = await supabase.from('keys').select('*').eq('key', rawKey).single(); found = r.data; } catch { found = null; }
+    if (!found) return res.json({ success: false, error: 'Not found.', vvx: 'no' });
+
+    const expired = new Date(found.expiry) < new Date();
+    res.json({
+        success: true,
+        username: found.username,
+        products: found.products || [],
+        expiry: found.expiry,
+        expired: expired ? 'yes' : 'no',
+        locked_ip: found.locked_ip || '',
+        locked_hwid: found.locked_hwid || '',
+        vv: (found.products || []).map(p => productAbbr(p)).filter(Boolean).join(', '),
+        vvx: expired ? 'no' : 'yes',
+        xc: encryptExpiry(found.expiry)
+    });
+});
 
 /* ── C++ LOADER VALIDATION ─────────────────────────────── */
 const PRODUCT_ABBR_FIXED = { emulator: 'e', colorbot: 'c', vault: 'v', serial: 's' };
@@ -435,6 +563,17 @@ app.put('/api/admin/keys/:key', async (req, res) => {
     res.json({ success: true, key: { ...found, ...updates } });
 });
 
+app.post('/api/admin/keys/:key/reset-hwid', async (req, res) => {
+    let found;
+    try { const r = await supabase.from('keys').select('*').eq('key', req.params.key).single(); found = r.data; } catch { found = null; }
+    if (!found) return res.json({ success: false, error: 'Key not found.' });
+
+    const oldHWID = found.locked_hwid || 'none';
+    await supabase.from('keys').update({ locked_hwid: null }).eq('key', req.params.key);
+    await addLog('IP_RESET', `HWID reset for key ${req.params.key}: was ${oldHWID}`);
+    res.json({ success: true });
+});
+
 app.post('/api/admin/keys/:key/reset-ip', async (req, res) => {
     let found;
     try { const r = await supabase.from('keys').select('*').eq('key', req.params.key).single(); found = r.data; } catch { found = null; }
@@ -647,6 +786,237 @@ async function ensureStorageBucket() {
     } catch {}
 }
 ensureStorageBucket();
+
+/* ── API DOCS ───────────────────────────────────────────── */
+app.get('/api/docs', async (req, res) => {
+    const cppCode = `// ─── Auth token generator (C++) ──────────────────────
+#include <string>
+#include <cstdint>
+#include <iomanip>
+#include <sstream>
+#include <openssl/sha.h>
+#include <ctime>
+
+std::string sha256_hex(const std::string &in) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256((unsigned char*)in.data(), in.size(), hash);
+    std::ostringstream out;
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
+        out << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+    return out.str();
+}
+
+std::string generate_token(const std::string &key, const std::string &secret) {
+    time_t now = time(nullptr);
+    long long window = now / 30;  // 30-second window
+    std::string input = std::to_string(window) + ":" + key + ":" + secret;
+    return sha256_hex(input).substr(0, 16);
+}
+
+// Kullanım:
+// std::string key = "ABC1234";
+// std::string secret = "rose-api-auth-v2-secret";
+// std::string token = generate_token(key, secret);
+// long long ts = time(nullptr);
+// HTTP headers: X-Auth-Token: <token>, X-Auth-Ts: <ts>`;
+
+    const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Rose API Docs</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#060608; color:#f0f0f5; font-family:'Inter',system-ui,sans-serif; padding:40px 24px; }
+h1 { font-size:2rem; font-weight:800; letter-spacing:-0.04em; margin-bottom:4px; background:linear-gradient(145deg,#fff 30%,rgba(255,255,255,0.6)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.sub { color:rgba(240,240,245,0.55); margin-bottom:32px; }
+.card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:16px; padding:24px; margin-bottom:20px; }
+.card h2 { font-size:1.2rem; font-weight:700; margin-bottom:8px; color:#f0f0f5; }
+.card p { font-size:0.9rem; color:rgba(240,240,245,0.55); line-height:1.6; margin-bottom:12px; }
+.tag { display:inline-block; padding:3px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; font-family:'Space Mono',monospace; margin-right:6px; margin-bottom:6px; }
+.tag.get { background:rgba(74,222,128,0.1); border:1px solid rgba(74,222,128,0.2); color:#4ade80; }
+.tag.post { background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.2); color:#93c5fd; }
+pre { background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:16px; font-family:'Space Mono',monospace; font-size:0.82rem; line-height:1.5; overflow-x:auto; color:rgba(240,240,245,0.8); }
+code { font-family:'Space Mono',monospace; font-size:0.85rem; }
+.table { width:100%; border-collapse:collapse; margin:12px 0; }
+.table th { text-align:left; padding:8px 12px; font-size:0.72rem; font-weight:700; color:rgba(240,240,245,0.32); text-transform:uppercase; letter-spacing:0.06em; border-bottom:1px solid rgba(255,255,255,0.07); }
+.table td { padding:8px 12px; font-size:0.85rem; border-bottom:1px solid rgba(255,255,255,0.04); color:rgba(240,240,245,0.55); }
+.table td:first-child { color:#f0f0f5; font-weight:600; font-family:'Space Mono',monospace; }
+.endpoint { display:inline-block; font-family:'Space Mono',monospace; font-size:0.95rem; font-weight:700; color:#C85078; margin:4px 0 8px; }
+.param { color:#facc15; }
+.optional { opacity:0.5; }
+.glow { text-shadow:0 0 20px rgba(200,80,120,0.3); }
+hr { border:none; border-top:1px solid rgba(255,255,255,0.06); margin:24px 0; }
+</style></head><body>
+<h1 class="glow">Rose API <span style="font-size:1rem;font-weight:400;color:rgba(240,240,245,0.32);">Documentation</span></h1>
+<p class="sub">Complete API reference for C++ loader integration.</p>
+
+<div class="card">
+<h2>🔐 Authentication</h2>
+<p>All protected endpoints require two HTTP headers:</p>
+<table class="table">
+<tr><th>Header</th><th>Description</th></tr>
+<tr><td>X-Auth-Token</td><td>Rotating hash: SHA256(window:key:secret)[0:16], changes every 30 seconds</td></tr>
+<tr><td>X-Auth-Ts</td><td>UNIX timestamp used to generate the token</td></tr>
+</table>
+<p><strong>C++ token generator:</strong></p>
+<pre>${cppCode.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+<p style="margin-top:8px;font-size:0.8rem;color:var(--warn);">⚠ The API secret is embedded in your C++ loader binary. Use obfuscation to protect it.</p>
+</div>
+
+<div class="card">
+<h2>📦 Loader Version</h2>
+<p><span class="tag get">GET</span></p>
+<div class="endpoint">/api/loader</div>
+<p>Returns the current loader version (no auth required).</p>
+<pre>{
+  "version": "${LOADER_VERSION}"
+}</pre>
+<table class="table"><tr><th>Field</th><th>Type</th><th>Description</th></tr>
+<tr><td>version</td><td>string</td><td>Current loader version from LOADER_VERSION env</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>✅ Key Validation</h2>
+<p><span class="tag get">GET</span></p>
+<div class="endpoint">/api/validate/<span class="param">:key</span></div>
+<p>Validate a key and get user info (no auth required).</p>
+<pre>{
+  "name": "wrexbey",
+  "vv": "e, c, v, s",
+  "vvx": "yes",
+  "vvc": "no",
+  "vvz": "yes",
+  "xc": "IRoXGhwf..."
+}</pre>
+<table class="table">
+<tr><th>Field</th><th>Description</th></tr>
+<tr><td>name</td><td>Username associated with the key</td></tr>
+<tr><td>vv</td><td>Product codes: e=emulator, c=colorbot, v=vault, s=serial (+ first letter for custom products)</td></tr>
+<tr><td>vvx</td><td>"yes" if key is valid and not expired</td></tr>
+<tr><td>vvc</td><td>"yes" if key is expired</td></tr>
+<tr><td>vvz</td><td>"yes" if key is valid (redundant with vvx)</td></tr>
+<tr><td>xc</td><td>XOR + Base64 encrypted expiry date (use decrypt_expiry from C++ docs)</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>🔒 HWID Lock</h2>
+<p><span class="tag post">POST</span></p>
+<div class="endpoint">/api/hwidlock/<span class="param">:key</span></div>
+<p>Lock a key to a hardware ID. Requires <strong>X-Auth-Token</strong> and <strong>X-Auth-Ts</strong> headers.</p>
+<p><strong>Request body (JSON):</strong></p>
+<pre>{
+  "hwid": "CPU-1234-5678-ABCD"
+}</pre>
+<p><strong>Response:</strong></p>
+<pre>{
+  "success": true,
+  "vvx": "yes",
+  "name": "wrexbey",
+  "vv": "e, c, v, s",
+  "xc": "IRoXGhwf...",
+  "hwid_locked": "no"
+}</pre>
+<table class="table">
+<tr><th>Field</th><th>Description</th></tr>
+<tr><td>success</td><td>true/false</td></tr>
+<tr><td>vvx</td><td>"yes" if lock succeeded / key valid</td></tr>
+<tr><td>name</td><td>Username</td></tr>
+<tr><td>vv</td><td>Product abbreviations</td></tr>
+<tr><td>xc</td><td>Encrypted expiry</td></tr>
+<tr><td>hwid_locked</td><td>"yes" if HWID was already locked, "no" if just locked now</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>👤 User Details</h2>
+<p><span class="tag get">GET</span></p>
+<div class="endpoint">/api/user/<span class="param">:key</span></div>
+<p>Get full user details. Requires <strong>X-Auth-Token</strong> and <strong>X-Auth-Ts</strong> headers.</p>
+<pre>{
+  "success": true,
+  "username": "wrexbey",
+  "products": ["Emulator", "Vault", "Colorbot", "Serial"],
+  "expiry": "2026-06-15",
+  "expired": "no",
+  "locked_ip": "192.168.1.1",
+  "locked_hwid": "CPU-1234-5678-ABCD",
+  "vv": "e, c, v, s",
+  "vvx": "yes",
+  "xc": "IRoXGhwf..."
+}</pre>
+<table class="table">
+<tr><th>Field</th><th>Description</th></tr>
+<tr><td>username</td><td>Key owner username</td></tr>
+<tr><td>products</td><td>Array of full product names</td></tr>
+<tr><td>expiry</td><td>Expiry date (YYYY-MM-DD)</td></tr>
+<tr><td>expired</td><td>"yes" if expired</td></tr>
+<tr><td>locked_ip</td><td>Locked IP or empty string</td></tr>
+<tr><td>locked_hwid</td><td>Locked HWID or empty string</td></tr>
+<tr><td>vv</td><td>Product abbreviations</td></tr>
+<tr><td>vvx</td><td>"yes"/"no"</td></tr>
+<tr><td>xc</td><td>Encrypted expiry</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>🔐 Admin Endpoints</h2>
+<p>All admin endpoints require <code>Content-Type: application/json</code>. Session is managed via <code>roseAdminToken</code> in localStorage.</p>
+
+<p><strong style="color:#C85078;">POST /api/admin/login</strong> — Sign in</p>
+<pre>{"username":"heyselcuk","password":"kaan3324"}
+→ {"success":true,"token":"...","username":"heyselcuk"}</pre>
+
+<p><strong style="color:#C85078;">POST /api/admin/create-key</strong> — Generate a key</p>
+<pre>{"username":"user","products":["Vault"],"expiryDays":30}
+→ {"success":true,"key":{"key":"ABC1234",...}}</pre>
+
+<p><strong style="color:#C85078;">GET /api/admin/keys</strong> — List all keys</p>
+<p><strong style="color:#C85078;">PUT /api/admin/keys/:key</strong> — Edit key (products, expiry)</p>
+<p><strong style="color:#C85078;">DELETE /api/admin/keys/:key</strong> — Delete a key</p>
+<p><strong style="color:#C85078;">POST /api/admin/keys/:key/reset-ip</strong> — Reset IP lock</p>
+<p><strong style="color:#C85078;">POST /api/admin/keys/:key/reset-hwid</strong> — Reset HWID lock</p>
+
+<p><strong style="color:#C85078;">GET /api/admin/logs</strong> — View logs</p>
+<p><strong style="color:#C85078;">POST /api/admin/clear-logs</strong> — Clear all logs</p>
+<p><strong style="color:#C85078;">GET /api/admin/admins</strong> — List admins</p>
+<p><strong style="color:#C85078;">POST /api/admin/admins</strong> — Create admin</p>
+<p><strong style="color:#C85078;">DELETE /api/admin/admins/:username</strong> — Remove admin</p>
+
+<p><strong style="color:#C85078;">GET /api/config/products</strong> — Get product list &amp; status</p>
+<p><strong style="color:#C85078;">PUT /api/admin/products/:id</strong> — Update product</p>
+<p><strong style="color:#C85078;">POST /api/admin/products/:id/upload</strong> — Upload file (multipart)</p>
+</div>
+
+<div class="card">
+<h2>🧩 C++ Decrypt Expiry (xc field)</h2>
+<pre>std::string decrypt_expiry(const std::string &xc, const std::string &secret = "rose-xor-key-2024") {
+    auto raw = base64_decode(xc);
+    for (size_t i = 0; i < raw.size(); i++)
+        raw[i] ^= secret[i % secret.size()];
+    return std::string(raw.begin(), raw.end());
+}
+// Returns: "2026-06-15"</pre>
+</div>
+
+<div class="card">
+<h2>⚠ Rate Limiting</h2>
+<p>All API endpoints are rate-limited per IP address:</p>
+<ul style="color:rgba(240,240,245,0.55);font-size:0.9rem;line-height:1.8;padding-left:20px;">
+<li><strong>/api/hwidlock/:key</strong> — max 10 requests/minute</li>
+<li><strong>/api/user/:key</strong> — max 20 requests/minute</li>
+<li>Exceeding the limit returns HTTP 429 with a JSON error.</li>
+</ul>
+</div>
+
+<hr>
+<p style="text-align:center;color:rgba(240,240,245,0.32);font-size:0.8rem;">Rose Redeem API &mdash; Documentation v1.0</p>
+
+</body></html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+});
 
 setInterval(cleanupSessions, 3600000);
 
