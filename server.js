@@ -22,6 +22,7 @@ const supabase = createClient(
 /* ── Configuration ─────────────────────────────────────── */
 const LOADER_VERSION = process.env.LOADER_VERSION || 'v1.0.0';
 let API_AUTH_SECRET = process.env.API_AUTH_SECRET || 'rose-api-auth-v2-secret';
+let STATIC_AUTH_TOKEN = process.env.STATIC_AUTH_TOKEN || 'loader-static-2024';
 const AUTH_WINDOW = 30;
 
 /* ── Security middleware ─────────────────────────────── */
@@ -115,16 +116,18 @@ async function ensureConfigTable() {
         const defaults = [
             ['loader_version', LOADER_VERSION],
             ['api_auth_secret', API_AUTH_SECRET],
-            ['static_auth_token', ''],
+            ['static_auth_token', STATIC_AUTH_TOKEN],
                 ['rate_hwidlock', '10'],
             ['rate_user', '20']
         ];
         for (const [k, v] of defaults) {
             await pgPool.query(`INSERT INTO config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`, [k, v]);
         }
-        // Load stored auth secret into memory
-        const { rows } = await pgPool.query(`SELECT value FROM config WHERE key = 'api_auth_secret'`);
-        if (rows.length && rows[0].value) API_AUTH_SECRET = rows[0].value;
+        // Load stored values into memory (in case DB has different values than defaults)
+        const { rows: secretRows } = await pgPool.query(`SELECT value FROM config WHERE key = 'api_auth_secret'`);
+        if (secretRows.length && secretRows[0].value) API_AUTH_SECRET = secretRows[0].value;
+        const { rows: staticRows } = await pgPool.query(`SELECT value FROM config WHERE key = 'static_auth_token'`);
+        if (staticRows.length && staticRows[0].value) STATIC_AUTH_TOKEN = staticRows[0].value;
     } catch (e) { console.error('ensureConfigTable:', e); }
 }
 ensureConfigTable().catch(() => {});
@@ -316,9 +319,8 @@ async function verifyAuth(req, key) {
     const ts = parseInt(req.headers['x-auth-ts']) || 0;
     if (!token) return false;
     if (ts > 0) return verifyAuthToken(key, token, ts);
-    // Fallback: static auth token from config
-        const staticToken = await getConfigVal('static_auth_token', '');
-    return staticToken && token === staticToken;
+    // Static auth (no timestamp) — match against in-memory token
+    return STATIC_AUTH_TOKEN && token === STATIC_AUTH_TOKEN;
 }
 
 function sanitize(str) {
@@ -910,9 +912,24 @@ app.get('/api/admin/config', async (req, res) => {
         if (!hdr) return res.status(401).json({ success: false, error: 'Unauthorized.' });
     }
     const cfg = await getConfig();
-    // Never expose static_auth_token
-    if (cfg.static_auth_token) cfg.static_auth_token = '••••••';
+    // Never expose static token
+    delete cfg.static_auth_token;
     res.json({ success: true, config: cfg });
+});
+
+app.post('/api/admin/static-token', async (req, res) => {
+    const hdr = req.headers['x-admin-user'] || '';
+    if (!hdr) return res.status(401).json({ success: false, error: 'Unauthorized.' });
+    const { token } = req.body;
+    if (!token || typeof token !== 'string') return res.json({ success: false, error: 'Token required.' });
+    STATIC_AUTH_TOKEN = token;
+    await setConfigVal('static_auth_token', token);
+    await addLog('PRODUCT_UPDATE', `Static auth token changed`);
+    res.json({ success: true });
+});
+
+app.get('/api/admin/static-token-status', async (req, res) => {
+    res.json({ success: true, set: !!STATIC_AUTH_TOKEN });
 });
 
 app.post('/api/admin/config', async (req, res) => {

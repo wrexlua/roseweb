@@ -393,7 +393,7 @@
                         <label class="form-lbl">Static Token (fixed, no rotation — send as X-Auth-Token, omit X-Auth-Ts)</label>
                         <input class="form-inp" id="cfgStaticAuthToken" placeholder="Not set" style="width:100%;max-width:400px;font-family:'Space Mono',monospace;">
                     </div>
-                    <button class="btn-create" onclick="saveApiConfig('static_auth_token')">Save</button>
+                    <button class="btn-create" onclick="saveStaticToken()">Save</button>
                 </div>
                 <div style="padding:0 24px 16px;font-size:0.78rem;color:var(--t3);">
                     Loader sends only <code>X-Auth-Token: &lt;token&gt;</code> (no timestamp). Disables 30s window rotation.
@@ -1059,16 +1059,31 @@ function loadApiConfig() {
         const c = d.config;
         document.getElementById('cfgLoaderVersion').value = c.loader_version || 'v1.0.0';
         document.getElementById('cfgApiAuthSecret').value = c.api_auth_secret || '';
-        const staticInp = document.getElementById('cfgStaticAuthToken');
-        if (c.static_auth_token === '••••••') {
-            staticInp.value = '';
-            staticInp.placeholder = 'Currently set — enter new value to change';
-        } else {
-            staticInp.value = c.static_auth_token || '';
-        }
         document.getElementById('cfgRateHwidlock').value = c.rate_hwidlock || '10';
         document.getElementById('cfgRateUser').value = c.rate_user || '20';
     }).catch(() => showToast('Failed to load API config.', 'error'));
+    // Check static token status
+    fetch('/api/admin/static-token-status').then(r => r.json()).then(d => {
+        const inp = document.getElementById('cfgStaticAuthToken');
+        inp.placeholder = d.set ? 'Currently set — enter new value to change' : 'Not set';
+        inp.value = '';
+    }).catch(() => {});
+}
+
+function saveStaticToken() {
+    const token = document.getElementById('cfgStaticAuthToken').value.trim();
+    if (!token) { showToast('Enter a token value.', 'error'); return; }
+    fetch('/api/admin/static-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-User': ADMIN_USER },
+        body: JSON.stringify({ token })
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            showToast('Static token saved!', 'success');
+            document.getElementById('cfgStaticAuthToken').value = '';
+            document.getElementById('cfgStaticAuthToken').placeholder = 'Currently set — enter new value to change';
+        } else showToast(d.error || 'Failed.', 'error');
+    }).catch(() => showToast('Connection error.', 'error'));
 }
 
 function saveApiConfig(...keys) {
@@ -1083,8 +1098,6 @@ function saveApiConfig(...keys) {
             const v = document.getElementById('cfgApiAuthSecret').value.trim();
             if (!v) { showToast('Auth secret required.', 'error'); hasError = true; return; }
             payload.api_auth_secret = v;
-        } else if (k === 'static_auth_token') {
-            payload.static_auth_token = document.getElementById('cfgStaticAuthToken').value.trim();
         } else if (k === 'rate_hwidlock') {
             payload.rate_hwidlock = document.getElementById('cfgRateHwidlock').value || '10';
         } else if (k === 'rate_user') {
