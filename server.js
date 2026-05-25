@@ -355,13 +355,20 @@ app.post('/api/hwidlock/:key', async (req, res) => {
     if (isExpired(found.expiry))
         return res.json({ success: false, error: 'Key expired.', vvx: 'no' });
 
-    const existingHwid = found.locked_hwid || null;
+    let existingHwid = found.locked_hwid || null;
+
+    if (!existingHwid) {
+        const { data: userKeys } = await supabase.from('keys').select('locked_hwid').eq('username', found.username).not('locked_hwid', 'is', null);
+        if (userKeys && userKeys.length > 0) existingHwid = userKeys.find(k => k.locked_hwid)?.locked_hwid || null;
+    }
+
     if (existingHwid && existingHwid !== hwid)
         return res.json({ success: false, error: 'HWID mismatch.', vvx: 'no', locked: true });
 
-    if (!existingHwid) {
-        await supabase.from('keys').update({ locked_hwid: hwid }).eq('key', rawKey);
-        await addLog('IP_LOCK', `HWID locked for key ${rawKey}: ${hwid}`, found.username, ip);
+    if (!found.locked_hwid) {
+        const targetHwid = existingHwid || hwid;
+        await supabase.from('keys').update({ locked_hwid: targetHwid }).eq('username', found.username).is('locked_hwid', null);
+        await addLog('IP_LOCK', `HWID locked for user ${found.username}: ${targetHwid}`, found.username, ip);
     }
 
     const abbrs = (found.products || []).map(p => productAbbr(p)).filter(Boolean).join(', ');
@@ -374,7 +381,7 @@ app.post('/api/hwidlock/:key', async (req, res) => {
         vvc: expired ? 'yes' : 'no',
         vvz: expired ? 'no' : 'yes',
         xc: encryptExpiry(found.expiry),
-        hwid_locked: existingHwid ? 'yes' : 'no'
+        hwid_locked: 'yes'
     });
 });
 
@@ -491,12 +498,40 @@ app.post('/api/activate', async (req, res) => {
         return res.json({ success: false, error: 'This key has expired.' });
     }
 
+    let existingIp = found.locked_ip;
+    let existingHwid = found.locked_hwid;
+
+    if (!existingIp || !existingHwid) {
+        const { data: userKeys } = await supabase.from('keys').select('locked_ip, locked_hwid').eq('username', found.username);
+        if (userKeys) {
+            if (!existingIp) existingIp = userKeys.find(k => k.locked_ip)?.locked_ip || null;
+            if (!existingHwid) existingHwid = userKeys.find(k => k.locked_hwid)?.locked_hwid || null;
+        }
+    }
+
+    const updates = {};
+    let needsUpdate = false;
+
     if (!found.locked_ip) {
-        await supabase.from('keys').update({ locked_ip: ip }).eq('key', cleanKey);
-        await addLog('IP_LOCK', `IP locked for key ${cleanKey}: ${ip}`, found.username, ip);
-    } else if (found.locked_ip !== ip) {
+        updates.locked_ip = existingIp || ip;
+        found.locked_ip = updates.locked_ip;
+        needsUpdate = true;
+        await addLog('IP_LOCK', `IP locked for key ${cleanKey}: ${updates.locked_ip}`, found.username, ip);
+    } 
+    
+    if (found.locked_ip !== ip) {
         await addLog('ACTIVATE_FAIL', `IP mismatch for key ${cleanKey}: expected ${found.locked_ip}, got ${ip}`, found.username, ip);
         return res.json({ success: false, error: 'This key is locked to another IP.' });
+    }
+
+    if (!found.locked_hwid && existingHwid) {
+        updates.locked_hwid = existingHwid;
+        found.locked_hwid = existingHwid;
+        needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+        await supabase.from('keys').update(updates).eq('key', cleanKey);
     }
 
     await addLog('ACTIVATE_SUCCESS', `Key activated: ${cleanKey} | Products: ${found.products.join(', ')}`, found.username, ip);
