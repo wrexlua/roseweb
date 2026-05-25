@@ -213,6 +213,46 @@ function sanitize(str) {
     return String(str || '').replace(/[<>&'"]/g, '').trim();
 }
 
+/* ── C++ LOADER VALIDATION ─────────────────────────────── */
+const PRODUCT_ABBR = { emulator: 'e', colorbot: 'c', vault: 'v', serial: 's' };
+
+function encryptExpiry(dateStr) {
+    const key = process.env.EXPIRY_SECRET || 'rose-xor-key-2024';
+    const buf = Buffer.from(dateStr, 'utf-8');
+    const k = Buffer.from(key, 'utf-8');
+    for (let i = 0; i < buf.length; i++) buf[i] ^= k[i % k.length];
+    return buf.toString('base64');
+}
+
+async function validateKeyResponse(rawKey) {
+    const empty = { name: '', vv: '', vvx: 'no', vvc: 'yes', vvz: 'no', xc: '' };
+    if (!rawKey) return empty;
+
+    const clean = rawKey.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (clean.length < 6) return empty;
+
+    let found;
+    try { const r = await supabase.from('keys').select('*').eq('key', clean).single(); found = r.data; } catch { found = null; }
+    if (!found) return empty;
+
+    const expired = new Date(found.expiry) < new Date();
+    const valid = !expired;
+    const abbrs = (found.products || []).map(p => PRODUCT_ABBR[p.toLowerCase()] || '').filter(Boolean).join(', ');
+
+    return {
+        name: found.username || '',
+        vv: abbrs,
+        vvx: valid ? 'yes' : 'no',
+        vvc: expired ? 'yes' : 'no',
+        vvz: valid ? 'yes' : 'no',
+        xc: encryptExpiry(found.expiry)
+    };
+}
+
+app.get('/api/validate', async (req, res) => res.json(await validateKeyResponse(req.query.key)));
+app.get('/api/validate/:key', async (req, res) => res.json(await validateKeyResponse(req.params.key)));
+app.get('/api/validate=:key', async (req, res) => res.json(await validateKeyResponse(req.params.key)));
+
 /* ── KEY ACTIVATION ───────────────────────────────────── */
 app.post('/api/activate', async (req, res) => {
     const { key } = req.body;
